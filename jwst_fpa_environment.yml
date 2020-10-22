@@ -1,0 +1,25 @@
+channels:
+- http://ssb.stsci.edu/astroconda
+- conda-forge
+- defaults
+dependencies:
+- python=3.6
+- astropy
+- matplotlib
+- numpy
+- sympy
+- pyqt
+- pip
+- ipykernel
+- pandas
+- corner
+- pygraphviz
+- pip:
+    - pysiaf
+    - photutils
+    - linearfit
+    - jwcf
+    - pystortion
+    - pystrometry
+    - pyia
+    - git+https://github.com/spacetelescope/jwst
