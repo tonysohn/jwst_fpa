@@ -35,7 +35,6 @@ from pystortion import crossmatch
 from scipy.spatial import cKDTree
 
 from alignment import AlignmentObservation, compute_idl_to_tel_in_table
-from utils import correct_for_proper_motion
 
 # Below was added to figure out the initial offset between reference and observed catalog positions. [STS]
 from tweakwcs import matchutils
