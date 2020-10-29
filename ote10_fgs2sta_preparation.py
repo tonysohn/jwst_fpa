@@ -19,9 +19,8 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
-from astropy.table import Table, vstack, hstack
+from astropy.table import hstack
 from astropy import units as u
-# from astropy.utils.exceptions import AstropyWarning
 
 import prepare_jwst_fpa_data
 import alignment

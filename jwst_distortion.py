@@ -21,10 +21,9 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
-from astropy.table import Table, vstack, Column
+import astropy.units as u
+from astropy.table import Table, Column
 from astropy.time import Time
-from astropy import units as u
-# from astropy.utils.exceptions import AstropyWarning
 
 import prepare_jwst_fpa_data
 import alignment
@@ -32,13 +31,6 @@ import alignment
 from pystortion import distortion
 import pysiaf
 import photutils
-
-# if sys.version_info[0] == 3:
-#import importlib
-#     importlib.reload( pystortion )
-#     importlib.reload( fpalign )
-#     importlib.reload( fpalign.alignment)
-#importlib.reload(prepare_jwst_fpa_data)
 
 deg2mas =  u.deg.to(u.mas)
 
@@ -213,14 +205,11 @@ for program_id in program_ids:
     if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_data_dir, '*.fits'))):
         # if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_data_dir, '*.fits'))):
 
-###        naming_tag = 'photutils{}_weights-{}'.format(photutils.__version__, use_weights_for_epsf)
-        naming_tag = 'photutils{}'.format(photutils.__version__)
-
         extraction_parameters = {'nominalpsf': nominalpsf,
                                  'use_epsf': use_epsf,
                                  'show_extracted_sources': show_extracted_sources,
                                  'show_psfsubtracted_image': show_psfsubtracted_image,
-                                 'naming_tag': naming_tag
+                                 #'naming_tag': naming_tag
                                  #'epsf_psf_size_pix': 20,
                                  #'use_DAOStarFinder_for_epsf' : use_DAOStarFinder_for_epsf,
                                  #'use_weights_for_epsf': False,

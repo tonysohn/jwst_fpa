@@ -6,27 +6,25 @@ import pickle
 import sys
 import time
 import warnings
-import corner
 import subprocess
-from collections import OrderedDict
-
+import matplotlib.pyplot as plt
 import astropy.io.fits as fits
+import astropy.units as u
+
+from collections import OrderedDict
 from astropy.table import Table, vstack
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
-from astropy import units as u
 from astropy.utils.exceptions import AstropyWarning
-from astropy.stats import sigma_clip, sigma_clipped_stats, gaussian_sigma_to_fwhm
-from astropy.visualization import SqrtStretch, LogStretch, simple_norm
-from astropy.visualization.mpl_normalize import ImageNormalize
-from astropy.nddata import NDData, StdDevUncertainty, NDUncertainty
+from astropy.stats import sigma_clip
+from astropy.visualization import simple_norm
+from astropy.nddata import NDData
 from astropy.modeling.fitting import LevMarLSQFitter
 
 from jwst import datamodels
-from photutils import IRAFStarFinder, DAOStarFinder, find_peaks
-from photutils import CircularAperture, RectangularAperture, EPSFBuilder
-from photutils.psf import DAOGroup, IntegratedGaussianPRF
-from photutils.psf import extract_stars, IterativelySubtractedPSFPhotometry
+from photutils import IRAFStarFinder, DAOStarFinder
+from photutils import CircularAperture, EPSFBuilder
+from photutils.psf import DAOGroup, extract_stars, IterativelySubtractedPSFPhotometry
 from photutils.background import MMMBackground, MADStdBackgroundRMS
 from photutils.centroids import centroid_2dg, centroid_com
 
@@ -39,9 +37,6 @@ from alignment import AlignmentObservation, compute_idl_to_tel_in_table
 # Below was added to figure out the initial offset between reference and observed catalog positions. [STS]
 from tweakwcs import matchutils
 
-from matplotlib import style, pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.ticker as ticker
 
 def select_isolated_sources(extracted_sources, nearest_neighbour_distance_threshold_pix):
     """

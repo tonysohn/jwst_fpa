@@ -9,8 +9,6 @@ Authors
 Major Modifications
 -------------------
 
-    TBD: Simplify the script to remove all HST-only parts - mostly done [STS]
-
 Use
 ---
    From ipython session:
@@ -18,37 +16,27 @@ Use
 
 """
 
-##### START OF LIBRARY IMPORTS
-#####
 from __future__ import print_function
-from collections import OrderedDict
 
 import os
 import sys
 import copy
 import glob
 import pickle
+import pysiaf
 import numpy as np
 import matplotlib.pyplot as plt
+import astropy.units as u
 
-from astropy import units as u
-from astropy.time import Time
-from astropy.table import Table, vstack
+from astropy.table import vstack
 
-import photutils
-import pysiaf
-
-# These programs should be in the same directory
 import prepare_jwst_fpa_data
 import alignment
-import importlib
-#####
-##### END OF LIBRARY IMPORTS
 
 # Loding in configurations from config file
-
 import jwst_fpa_config
-importlib.reload(jwst_fpa_config)
+import importlib
+importlib.reload(jwst_fpa_config) # reload config file in case changes are made while in session
 
 observatory = jwst_fpa_config.observatory
 
@@ -148,13 +136,11 @@ siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
 if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_data_dir, '*.fits'))):
 
-    naming_tag = 'photutils{}_weights-{}'.format(photutils.__version__, use_weights_for_epsf)
-
     extraction_parameters = {'nominalpsf': nominalpsf,
                              'use_epsf': False, # change to True later
                              'show_extracted_sources': True,
                              'show_psfsubtracted_image': True,
-                             'naming_tag':  naming_tag
+                             #'naming_tag':  naming_tag
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : True,
                              #'use_weights_for_epsf': use_weights_for_epsf,
@@ -184,7 +170,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
     for aperture_name, aperture in siaf.apertures.items():
         for attribute in 'V2Ref V3Ref'.split():
             setattr(siaf[aperture_name], '{}_original'.format(attribute), getattr(siaf[aperture_name], attribute))
-        # setattr(siaf[aperture_name], 'tvs_corrected'.format(attribute), getattr(siaf[aperture_name], attribute))
 
     crossmatch_dir = os.path.join(standardized_data_dir, 'crossmatch')
     if os.path.isdir(crossmatch_dir) is False: os.makedirs(crossmatch_dir)
@@ -535,7 +520,7 @@ if show_summary_results:
                 # % plot SIAF value
                 v2_mean_siaf = np.mean(np.array([siaf[aper_name].V2Ref for aper_name in aperture_names[camera_name]]))
                 v3_mean_siaf = np.mean(np.array([siaf[aper_name].V3Ref for aper_name in aperture_names[camera_name]]))
-                axis.plot(v2_mean_siaf, v3_mean_siaf, 'ro', label='siaf.dat v1.85', ms=10)
+                axis.plot(v2_mean_siaf, v3_mean_siaf, 'ro', label='siaf.dat', ms=10)
 
                 # retrieve alignment results
                 i1 = np.where(obs_collection.T['AperName'] == aperture_names[camera_name][0])[0]

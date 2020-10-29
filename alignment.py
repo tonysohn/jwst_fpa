@@ -16,12 +16,12 @@ import copy
 import pickle
 from collections import OrderedDict
 
-from astropy import units as u
-from astropy.time import Time
-from astropy.table import Table, vstack, hstack
-
 import numpy as np
 import matplotlib.pyplot as plt
+import astropy.units as u
+
+from astropy.time import Time
+from astropy.table import Table, vstack, hstack
 
 import pysiaf
 import pystortion
@@ -32,14 +32,10 @@ deg2arcsec = u.deg.to(u.arcsec)
 
 # these are the aperture parameters that define the alignment
 alignment_definition_attributes = {'default': ['V3IdlYAngle', 'V2Ref', 'V3Ref']}
-#                                   'hst_fgs': ['db_tvs_pa_deg', 'db_tvs_v2_arcsec', 'db_tvs_v3_arcsec']}
 
 alignment_parameter_mapping = OrderedDict({'default': {'v3_angle': 'V3IdlYAngle', 'v2_position': 'V2Ref', 'v3_position': 'V3Ref'},
-#                               'hst_fgs': {'v3_angle': 'db_tvs_pa_deg', 'v2_position': 'db_tvs_v2_arcsec', 'v3_position': 'db_tvs_v3_arcsec'},
-                               'unit': {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
-                               'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'},
-                                           })
-
+                              'unit': {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
+                              'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'}})
 
 class AlignmentObservation(object):
     """Class for focal plane alignment obervations of Space Telescopes, e.g. HST and JWST
