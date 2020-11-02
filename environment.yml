@@ -7,10 +7,12 @@ dependencies:
 - astropy
 - matplotlib
 - numpy
+- pandas
 - photutils
 - pysiaf
 - pip
 - pip:
+    - ipython
     - jwcf
     - pystrometry
     - git+https://github.com/tonysohn/pystortion
