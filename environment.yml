@@ -9,6 +9,7 @@ dependencies:
 - numpy
 - photutils
 - pysiaf
+- pip
 - pip:
     - jwcf
     - pystrometry
