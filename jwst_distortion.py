@@ -29,8 +29,9 @@ import prepare_jwst_fpa_data
 import alignment
 
 from pystortion import distortion
+
 import pysiaf
-import photutils
+from pysiaf.constants import _DATA_ROOT
 
 deg2mas =  u.deg.to(u.mas)
 
@@ -44,12 +45,12 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 
 home_dir = os.environ['HOME']
 
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
+data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
-data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
-program_ids = ['1145']
+#data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
+program_ids = ['1144']
 nominalpsf = False # or True --> This will have to be False for OTE-10 and 11
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
@@ -67,8 +68,6 @@ use_epsf = False # or False
 overwrite_source_extraction = False # or False
 generate_standardized_fpa_data = True # or False
 overwrite_distortion_reference_table = True
-####use_DAOStarFinder_for_epsf = False # or True
-####use_weights_for_epsf = False # or True
 
 save_plot = True # or False
 verbose = True # or False
@@ -84,23 +83,6 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-
-if 0:
-    run_on_single_niriss_file = False
-    run_on_single_fgs_file = False
-    run_on_single_nircam_file = False
-    if run_on_single_niriss_file:
-        camera_pattern = 'jw01145001001_01101_00001_nis_cal.fits'
-#      camera_pattern = 'jw01088001001_01101_00001_nis_cal.fits'
-    elif run_on_single_fgs_file:
-        camera_pattern = 'jw01145002001_01201_00001_g1_cal.fits'
-    elif run_on_single_nircam_file:
-        camera_pattern = 'jw01144001001_01101_00001_nrca1_cal.fits'
-#       camera_pattern = 'jw01144001001_01101_00001_nrca2_cal.fits'
-#        camera_pattern = 'jw01144001001_01101_00001_nrca3_cal.fits'
-#        camera_pattern = 'jw01144001001_01101_00001_nrca4_cal.fits'
-    else:
-        camera_pattern = '_cal.fits'
 
 ### END OF CONFIGURATION PARAMETERS
 
@@ -397,8 +379,8 @@ for program_id in program_ids:
                 plt.xlabel('Magnitude')
                 plt.ylabel('Normalised count')
                 if save_plot:
-                    figName = os.path.join(plot_dir, '{}_xmatch_magnitudes.pdf'.format(name_seed))
-                    plt.savefig(figName, transparent=True, bbox_inches='tight', pad_inches=0)
+                    figname = os.path.join(plot_dir, '{}_xmatch_magnitudes.pdf'.format(name_seed))
+                    plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
                 if inspect_mode: plt.show()
 
 
@@ -409,9 +391,9 @@ for program_id in program_ids:
                 plt.xlabel(filter_name)
                 plt.ylabel('Centroid precision (mas)')
                 if save_plot:
-                    figName = os.path.join(plot_dir,
+                    figname = os.path.join(plot_dir,
                                            '{}_xmatch_centroid_precision.pdf'.format(name_seed))
-                    plt.savefig(figName, transparent=True, bbox_inches='tight', pad_inches=0)
+                    plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
                 if inspect_mode: plt.show()
 
 
@@ -573,8 +555,6 @@ for program_id in program_ids:
                 for attribute in 'XSciRef YSciRef'.split():
                     setattr(new_aperture, attribute, getattr(siaf_aper, attribute))
 
-                from pysiaf.constants import _DATA_ROOT
-
                 # get the SIAF version used in the simulations
                 ref_siaf = pysiaf.siaf.Siaf(instrument_name,
                                             basepath=os.path.join(_DATA_ROOT, 'JWST',
@@ -594,13 +574,32 @@ for program_id in program_ids:
                     obs.star_catalog_matched['x_SCI'].data,
                     obs.star_catalog_matched['y_SCI'].data)
 
-                from pystortion.utils import plot_spatial_difference
+                # Plot difference
 
                 data = {}
                 data['reference'] = {'x': x_idl_siaf, 'y': y_idl_siaf}
                 data['comparison_0'] = {'x': x_idl_check, 'y': y_idl_check}
-                plot_spatial_difference(data, figure_types=['quiver'],
-                                        xy_label=['X', 'Y'], xy_unit='arcsec', plot_dir=plot_dir)
+
+                plt.figure(figsize=(10,10), facecolor='w', edgecolor='k')
+                delta_x = data['comparison_0']['x'] - data['reference']['x']
+                delta_y = data['comparison_0']['y'] - data['reference']['y']
+
+                plt.quiver(data['reference']['x'], data['reference']['y'],
+                           delta_x, delta_y, angles='xy', scale=None)
+                offsets = np.linalg.norm([delta_x, delta_y], axis=0)
+
+                plt.title('Max difference {:2.3f} mas'.format(np.max(offsets)*1e3))
+                plt.axis('tight')
+                plt.axis('equal')
+                plt.xlabel('X (arcsec)')
+                plt.ylabel('Y (arcsec)')
+                plt.legend(loc='best')
+                ax = plt.gca()
+                ax.invert_yaxis()
+                if save_plot:
+                    figname = os.path.join(plot_dir,'spatial_difference.pdf')
+                    plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
+                plt.show()
 
                 rms_x = np.std(x_idl_check - x_idl_siaf)
                 rms_y = np.std(y_idl_check - y_idl_siaf)
@@ -608,3 +607,8 @@ for program_id in program_ids:
                 print("rms_y =",rms_y)
                 #assert rms_x < 0.05 # originally 1e-3
                 #assert rms_y < 0.05 # originally 1e-3
+
+print('================================================')
+print('END OF SCRIPT: ALL ANALYSES HAVE BEEN COMPLETED.')
+print('================================================')
+sys.exit(0)

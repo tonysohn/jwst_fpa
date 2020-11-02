@@ -206,12 +206,12 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     sharp_lo, sharp_hi = 0.6, 1.4
                     fwhm_lo, fwhm_hi   = 1.4, 2.4
                 elif 'g1' or 'g2' in f:
-                    sharp_lo, sharp_hi = 0.8, 1.4  ### PLACEHOLDER!!! CHANGE AFTER INSPECTION
+                    sharp_lo, sharp_hi = 0.8, 1.4
                 elif 'nrca' or 'nrcb' in f:
                     sharp_lo, sharp_hi = 0.8, 1.4
 
             # Use IRAFStarFinder for detecting stars
-            ### NOTE: minsep_fwhm > 5 is required for rejecting false sources around saturated stars
+            # NOTE: minsep_fwhm > 5 is required for rejecting false sources around saturated stars
             iraffind = IRAFStarFinder(threshold=50*bgrms+bgavg, fwhm=2.0, minsep_fwhm=7,
                                       roundlo=round_lo, roundhi=round_hi, sharplo=sharp_lo, sharphi=sharp_hi)
             #### but for NIRCam CommissingPSF images, 0.7<sharp<1.4 works!
@@ -366,19 +366,15 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
         if 'FGS' in extracted_sources.meta['instrument_name']:
             out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}.fits'.format(
-#                                    extracted_sources.meta['telescope'],
                                     extracted_sources.meta['instrument_name'],
                                     extracted_sources.meta['subarray_name'],
-#                                    extracted_sources.meta['EPOCH'].replace(':','-').replace('.','-'),
                                     extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
         else:
             out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}_{}_{}.fits'.format(
-#                                    extracted_sources.meta['telescope'],
                                     extracted_sources.meta['instrument_name'],
                                     extracted_sources.meta['subarray_name'],
                                     extracted_sources.meta['instrument_filter'],
                                     extracted_sources.meta['instrument_pupil'],
-#                                    extracted_sources.meta['EPOCH'].replace(':','-').replace('.','-'),
                                     extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
 
         print('Writing {}'.format(out_file))
@@ -522,22 +518,16 @@ def crossmatch_fpa_data(parameters):
             # Adjust the number of sources to be used for initial matching below
             obs_cat_bright = obs_cat[:149] ##### If I get a "exceeded" error, try changing this number
 
-
-#            offset_match = matchutils.TPMatch(searchrad=3, separation=1, use2dhist=True, tolerance=0.5) --> tolerance=0.5 causes an error for nrcb2
-            offset_match = matchutils.TPMatch(searchrad=3, separation=1, use2dhist=True, tolerance=0.7)
+            offset_match = matchutils.TPMatch(searchrad=3, separation=1, use2dhist=True, tolerance=0.7) # --> tolerance=0.5 causes an error for nrcb2
             idx_ref, idx_obs = offset_match(ref_cat, obs_cat_bright)
 
-            #
-            # NOTE: Do NOT use median below. For some reason, median does not work in some cases
-            #       and returns an empty array or value. [STS]
-            #
             dv2 = ref_cat['TPx'][idx_ref] - obs_cat_bright['TPx'][idx_obs]
-            offset_v2 = sigma_clip(dv2, sigma=3, maxiters=5, cenfunc='mean')
-            avg_offset_v2 = np.mean(offset_v2)
+            offset_v2 = sigma_clip(dv2.data, sigma=2.5, maxiters=5, cenfunc='median')
+            avg_offset_v2 = 3*np.ma.median(offset_v2) - 2*np.ma.mean(offset_v2)
 
             dv3 = ref_cat['TPy'][idx_ref] - obs_cat_bright['TPy'][idx_obs]
-            offset_v3 = sigma_clip(dv3, sigma=3, maxiters=5, cenfunc='mean')
-            avg_offset_v3 = np.mean(offset_v3)
+            offset_v3 = sigma_clip(dv3.data, sigma=2.5, maxiters=5, cenfunc='median')
+            avg_offset_v3 = 3*np.ma.median(offset_v3) - 2*np.ma.mean(offset_v3)
 
             if 1:
                 plt.figure(figsize=(10,6))
@@ -545,12 +535,12 @@ def crossmatch_fpa_data(parameters):
                 ax1 = plt.subplot(1,2,1)
                 ax1.set_xlabel('V2 offset [arcsec]')
                 ax1.set_ylabel('N')
-                ax1.hist(offset_v2, alpha=0.5, histtype='stepfilled')
+                ax1.hist(offset_v2, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
                 ax1.axvline(x=avg_offset_v2, color='r', linewidth=2)
                 ax2 = plt.subplot(1,2,2)
                 ax2.set_xlabel('V3 offset [arcsec]')
                 ax2.set_ylabel('N')
-                ax2.hist(offset_v3, alpha=0.5, histtype='stepfilled')
+                ax2.hist(offset_v3, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
                 ax2.axvline(x=avg_offset_v3, color='r', linewidth=2)
                 plt.tight_layout()
                 plt.show()
