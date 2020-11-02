@@ -14,12 +14,9 @@ observatory = 'JWST'
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-program_id = '1145'
-
 # Data directory (location of all _cal.fits files)
 #data_dir = os.path.join(home_dir, 'TEL/OTE-10/FGS1-FGS2_alignment/FGS1-NRCA3')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-10/FGS1-FGS2_alignment/NRCA3-FGS2')
-
 data_dir = os.path.join(home_dir, 'TEL/OTE-11/FGS1-NIRISS_alignment')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-11/NIRISS-FGS2_alignment')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-11/Confirmation')

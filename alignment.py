@@ -1206,7 +1206,6 @@ def determine_focal_plane_alignment(obs_collection, parameters):
     restrict_to_sets_that_include_aperture = parameters['restrict_to_sets_that_include_aperture']
     calibration_alignment_reference_aperture_name = parameters['calibration_alignment_reference_aperture_name']
     calibration_attitude_defining_aperture_name = parameters['calibration_attitude_defining_aperture_name']
-    program_id = parameters['program_id']
     correct_dva = parameters['correct_dva']
     k = parameters['k']
     k_attitude_determination = parameters['k_attitude_determination']

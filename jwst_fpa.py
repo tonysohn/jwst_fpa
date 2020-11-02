@@ -48,7 +48,6 @@ save_plot = jwst_fpa_config.save_plot
 verbose = jwst_fpa_config.verbose
 verbose_figures = jwst_fpa_config.verbose_figures
 #analysis_name = jwst_fpa_config.analysis_name
-program_id = jwst_fpa_config.program_id
 visit_groups = jwst_fpa_config.visit_groups
 nominalpsf = jwst_fpa_config.nominalpsf
 
@@ -94,7 +93,7 @@ reference_catalog = hawki.hawki_catalog()
 reference_catalog.rename_column('ra_deg', 'ra')
 reference_catalog.rename_column('dec_deg', 'dec')
 
-print('{}\nProcessing program {}'.format('='*100, program_id))
+print('{}\nFOCAL PLANE ALIGNMENT CALIBRATION'.format('='*100))
 
 obs_collection = []
 
@@ -110,21 +109,14 @@ for dir in [standardized_data_dir, result_dir, plot_dir]:
         os.makedirs(dir)
 
 # define pickle files
-obs_xmatch_pickle_file = os.path.join(result_dir,
-                                              '{}_{}_observations_xmatch.pkl'.format(program_id, idl_tel_method))
-obs_collection_pickle_file = os.path.join(result_dir,
-                                          '{}_{}_obs_collection.pkl'.format(program_id, idl_tel_method))
+obs_xmatch_pickle_file = os.path.join(result_dir, 'obs_xmatch.pkl')
+obs_collection_pickle_file = os.path.join(result_dir, 'obs_collection.pkl')
 
 use_weights_for_epsf = False # or True
 test_run_on_single_niriss_file = False # or False
 test_run_on_single_fgs_file = False # or Trie
 
 camera_pattern = '_cal.fits'
-
-if test_run_on_single_niriss_file:
-    camera_pattern = 'jw01145001001_01101_00001_nis_cal.fits'
-elif test_run_on_single_fgs_file:
-    camera_pattern = 'jw01145001001_01201_00001_g2_cal.fits'
 
 # Load all relevant SIAF apertures
 apertures_dict = {}
@@ -283,7 +275,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
     fpa_parameters['restrict_to_sets_that_include_aperture'] = restrict_to_sets_that_include_aperture
     fpa_parameters['calibration_alignment_reference_aperture_name'] = calibration_alignment_reference_aperture_name
     fpa_parameters['calibration_attitude_defining_aperture_name'] = calibration_attitude_defining_aperture_name
-    fpa_parameters['program_id'] = program_id
     fpa_parameters['correct_dva'] = correct_dva
     fpa_parameters['k'] = k
     fpa_parameters['k_attitude_determination'] = k_attitude_determination
