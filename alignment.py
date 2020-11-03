@@ -1242,7 +1242,7 @@ def determine_focal_plane_alignment(obs_collection, parameters):
     applied_calibration_file = None
     if apply_fpa_calibration & (calibration_alignment_reference_aperture_name is not None):
 #
-        temp_seed = '{}_alignref_{}_attdef_{}'.format(program_id,
+        temp_seed = 'alignref_{}_attdef_{}'.format(
                     calibration_alignment_reference_aperture_name,
                     calibration_attitude_defining_aperture_name)
         applied_calibration_file = '{}_calibration_complete.csv'.format(temp_seed)
@@ -1253,12 +1253,11 @@ def determine_focal_plane_alignment(obs_collection, parameters):
 ########
 
     # create seed for file and figure naming
-#    figure_filename_tag = '{}_{}'.format(program_id, parameters['idl_tel_method'])
 #    figure_filename_tag += '_alignref_{}_attdef_{}'.format(alignment_reference_aperture_name,
 #                                                           attitude_defining_aperture_name)
 
-    figure_filename_tag = '{}_alignref_{}_attdef_{}'.format(program_id, alignment_reference_aperture_name,
-                                                            attitude_defining_aperture_name)
+    figure_filename_tag = 'alignref_{}_attdef_{}'.format(alignment_reference_aperture_name,
+                                                         attitude_defining_aperture_name)
 
     if applied_calibration_file is not None:
         figure_filename_tag += '_CALIBRATION_APPLIED'
@@ -1447,7 +1446,6 @@ def determine_focal_plane_alignment(obs_collection, parameters):
 
         # dictionary to hold information necessary to produce analysis figures and metrics
         info_dict = {}
-        info_dict['program_id'] = program_id
         info_dict['visit_groups'] = visit_groups
         info_dict['k'] = k
         info_dict['correct_dva'] = correct_dva

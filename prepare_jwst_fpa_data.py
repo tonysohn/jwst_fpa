@@ -453,7 +453,7 @@ def crossmatch_fpa_data(parameters):
             reference_catalog['v2_spherical_arcsec'], reference_catalog['v3_spherical_arcsec'] = \
                 pysiaf.utils.rotations.getv2v3(attitude_ref, np.array(reference_catalog['ra']), np.array(reference_catalog['dec']))
 
-            ### Why convert to RA, Dec space???
+            ### Why convert to RA, Dec space??? Should just use the tangent-projected space
             reference_cat = SkyCoord(ra =np.array(reference_catalog['v2_spherical_arcsec']) * u.arcsec,
                                      dec=np.array(reference_catalog['v3_spherical_arcsec']) * u.arcsec)
 
@@ -606,7 +606,7 @@ def crossmatch_fpa_data(parameters):
             #xmatch_radius = copy.deepcopy(xmatch_radius)
 
             ###
-            ### TBD: replace routine below with second run of matchutils.TPMatch
+            ### TBD: Try replacing routine below with second run of matchutils.TPMatch
             ###
             #
             # *** TBD: If I use below, make sure to remove the +=avg_offset_v2, v3 above and -= below ***
@@ -617,15 +617,7 @@ def crossmatch_fpa_data(parameters):
             #                           xoffset=avg_offset_v2, yoffset=avg_offset_v3)
             #idx_refcat, idx_obscat = match(obs.reference_catalog, obs.star_catalog)
             #
-            # TBD: Add plots here
-            #
-            # DON'T NEED PLOT BELOW - ALREADY ABOVE
-            #if 1:
-            #    plt.fits(figsize=(7,7), facecolor='w', edgecolor='k')
-            #    plt.plot(reference_cat.ra, reference_cat.dec, 'bo', label='Reference Catalog', mfc=None, zorder=-40)
-            #    plt.plot(star_cat.ra, star_cat.dec, 'r.', label='Reference Catalog', mfc=None, zorder=-40)
-            #
-            #
+
 
 
             idx_reference_cat, idx_star_cat, d2d, d3d, diff_ra, diff_dec = crossmatch.xmatch(
