@@ -2,7 +2,7 @@
 This repository contains codes and scripts that can be used for performing the **Geometric Distortion Correction** and the **FGS-SI Alignment Calibration** for JWST imaging detectors. Currently supported detectors are FGS, NIRCam, and NIRISS. Support for NIRSpec and MIRI may be included in a future version.
 
 ## Installation
-This package has some external dependencies and requires anaconda to be pre-installed. Assuming anaconda is installed in your system, follow the simple two-step instructions below.
+This package has some external dependencies and requires anaconda to be pre-installed. Assuming anaconda is installed in your system, follow the instructions below.
 - Clone the `jwst_fpa` repository:
 
   ```git clone https://github.com/tonysohn/jwst_fpa.git```
@@ -11,7 +11,11 @@ This package has some external dependencies and requires anaconda to be pre-inst
 
   ```conda env create -f jwst_fpa/environment.yml -n fpa```
 
-- All necessary packages should have been installed by doing above. In some cases, importing `pysiaf` may result in error. If this happens, uninstall and reinstall `lxml` as follows:
+- Activate the new environment:
+
+  ``` conda activate fpa```
+
+- All necessary packages should have been installed, and the scripts should be ready to be run. However, importing `pysiaf` may result in error in some cases. A quick and easy fix is to simply uninstall and reinstall `lxml` as follows:
 
   ```pip uninstall lxml```
 
