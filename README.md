@@ -17,11 +17,9 @@ This package has some external dependencies and requires anaconda to be pre-inst
 
   ```pip install lxml```
 
-  
+## Usage
 
-## Example usage
+There are two main scripts and several supplemental codes/scripts included in this package. Below are quick descriptions for how to run the two main scripts. 
 
-There are two main scripts and several supplemental codes/scripts included in this package. Below are descriptions and example usages for the two main scripts. 
-
-- `jwst_distortion.py` - This script determines the geometric distortion solution for the JWST imaging detectors. The only essential configuration parameters required would be the data directory and whether the PSF is a nominal one or commissioning version (for OTE programs only, i.e., right after global alignment). 
-- `jwst_fpa.py` - This is the script for the focal plane alignment workflow. This script has a separate configuration file named `jwst_fpa_config.py`. All configurations including the data directory should be specified in this file.
+- `jwst_distortion.py` - This script determines the geometric distortion solution for the JWST imaging detectors. The only essential configuration parameters required would be the data directory and whether the PSF is a nominal one or commissioning version (for OTE programs only, i.e., right after global alignment). Once the `data_dir` points to where the `_cal.fits` files are, open an `ipython` session and run the script: `run jwst_distortion`
+- `jwst_fpa.py` - This is the script for the focal plane alignment workflow. This script has a separate configuration file named `jwst_fpa_config.py`. All configurations including the data directory should be specified in this file. Once the configuration file is ready, open an `ipython` session and run the script: `run jwst_fpa`
