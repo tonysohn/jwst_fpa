@@ -9,11 +9,12 @@ dependencies:
 - numpy
 - pandas
 - photutils
-- pysiaf
 - pip
 - pip:
     - ipython
-    - jwcf
-    - pystrometry
+    - pysiaf
+    - git+https://github.com/tonysohn/uhelpers
+    - git+https://github.com/Johannes-Sahlmann/pystrometry
     - git+https://github.com/tonysohn/pystortion
-    - git+https://github.com/spacetelescope/jwst
+    - git+https://github.com/spacetelescope/jwst-calibration-field
+    - git+https://github.com/spacetelescope/jwst@0.17.1

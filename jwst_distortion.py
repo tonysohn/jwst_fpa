@@ -46,20 +46,17 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 
 home_dir = os.environ['HOME']
 
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
+data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
-data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
+#data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
 nominalpsf = False # or True --> This will have to be False for OTE-10 and 11
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
 observatory = 'JWST'
 prdopssoc_version = 'PRDOPSSOC-031'
-#prdopssoc_version = 'PRDOPSSOC-H-015'
-###calibrated_detector = 'NIRISS' # or 'NIRISS' or 'NIRCam'
-###alibrated_aperture = 'NIS_CEN' # or 'FGS1_FULL' or 'NIS_CEN'
 
 use_hawki_catalog = True
 
@@ -129,8 +126,11 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
                                         coefficients_dict['Sci2IdlX'],
                                         coefficients_dict['Sci2IdlY'],
                                         coefficients_dict['Idl2SciX'],
-                                        coefficients_dict['Idl2SciY']), names=(
-    'siaf_index', 'exponent_x', 'exponent_y', 'Sci2IdlX', 'Sci2IdlY', 'Idl2SciX', 'Idl2SciY'))
+                                        coefficients_dict['Idl2SciY']),
+                                        names=('siaf_index',
+                                               'exponent_x', 'exponent_y',
+                                               'Sci2IdlX', 'Sci2IdlY',
+                                               'Idl2SciX', 'Idl2SciY'))
 
     distortion_reference_table.add_column(
         Column([aperture_name] * len(distortion_reference_table), name='AperName'), index=0)
