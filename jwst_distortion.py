@@ -46,12 +46,14 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
+data_dir = os.path.join(home_dir,'NIRCam_distortion/')
+#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
-nominalpsf = False # or True --> This will have to be False for OTE-10 and 11
+
+nominalpsf = True # or True --> This will have to be False for OTE-10 and 11
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
