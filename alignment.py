@@ -3,8 +3,8 @@
 Authors
 -------
 
-    Johannes Sahlmann
     Tony Sohn
+    Original script by Johannes Sahlmann
 
 Use
 ---
@@ -41,8 +41,8 @@ class AlignmentObservation(object):
     """Class for focal plane alignment obervations of Space Telescopes, e.g. HST and JWST
 
     attributes:
-        reference_catalog : Gaia reference catalog of stars relevant for the observations
-        star_catalog : astrometric catalog of stars derived from the observation
+        reference_catalog : Absolute reference catalog of stars
+        star_catalog : Observed catalog of stars
 
     """
 

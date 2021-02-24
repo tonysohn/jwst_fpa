@@ -463,7 +463,7 @@ def crossmatch_fpa_data(parameters):
 #                                      dec=reference_aperture.V3Ref * u.arcsec)
 #            selection_index = np.where(reference_cat.separation(v2v3_reference) < 3 * u.arcmin)[0]
 #            selection_index = np.where((reference_cat.separation(v2v3_reference) < 3 * u.arcmin) &
-#                                       (reference_catalog['j_2mass_extrapolated'] < 21))[0]
+#                                       (reference_catalog['j_magnitude'] < 21))[0]
 
             # Extract reference catalog stars in and around the calibration aperture.
             corners = aperture.corners('tel')
@@ -473,7 +473,7 @@ def crossmatch_fpa_data(parameters):
                                         (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+10)) &
                                         (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-10)) &
                                         (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+10)) &
-                                        (reference_catalog['j_2mass_extrapolated'] < 20.5) )[0]
+                                        (reference_catalog['j_magnitude'] < 20.5) )[0]
 
             obs.reference_catalog = reference_catalog[selection_index]
 
@@ -504,7 +504,7 @@ def crossmatch_fpa_data(parameters):
                                      (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+10)) &
                                      (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-10)) &
                                      (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+10)) &
-                                     (reference_catalog['j_2mass_extrapolated'] < 18.5) )[0] ### 18.5 works for FGS1 and 2, but may need to use 19 for NIRCam?
+                                     (reference_catalog['j_magnitude'] < 18.5) )[0] ### 18.5 works for FGS1 and 2, but may need to use 19 for NIRCam?
 
             print('Number of reference catalog stars used for initial offset match:',len(bright_index))
 
@@ -606,7 +606,8 @@ def crossmatch_fpa_data(parameters):
             #xmatch_radius = copy.deepcopy(xmatch_radius)
 
             ###
-            ### TBD: Try replacing routine below with second run of matchutils.TPMatch
+            ### TBD: Try replacing routine below with second run of matchutils.TPMatch instead of relying on pystortion
+            ###      This is to remove dependencies on external packages that won't be guaranteed to stay up to date.
             ###
             #
             # *** TBD: If I use below, make sure to remove the +=avg_offset_v2, v3 above and -= below ***

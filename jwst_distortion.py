@@ -29,7 +29,9 @@ import prepare_jwst_fpa_data
 import alignment
 
 from pystortion import distortion
+
 from jwcf import hawki
+#from jwcf import hawki, hst
 
 import pysiaf
 from pysiaf.constants import _DATA_ROOT
@@ -46,7 +48,8 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'NIRCam_distortion/')
+data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
+#data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
@@ -60,12 +63,12 @@ working_dir = os.path.join(data_dir, 'distortion_calibration')
 observatory = 'JWST'
 prdopssoc_version = 'PRDOPSSOC-031'
 
-use_hawki_catalog = True
+reference_catalog_type = 'hawki'
 
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle
 use_epsf = False # or False
-overwrite_source_extraction = False # or False
+overwrite_source_extraction = True # or False
 generate_standardized_fpa_data = True # or False
 overwrite_distortion_reference_table = True
 
@@ -162,11 +165,6 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
 
 idl_tel_method = 'spherical' # or 'planar_approximation'
 
-# Prepare the reference catalog
-reference_catalog = hawki.hawki_catalog()
-reference_catalog.rename_column('ra_deg', 'ra')
-reference_catalog.rename_column('dec_deg', 'dec')
-
 #=============================================================================
 #
 print('{}\nGEOMETRIC DISTORTION CALIBRATION'.format('='*100))
@@ -221,6 +219,20 @@ siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 #apertures_dict['pattern'] = master_aperture_names
 #siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict)
 
+# Prepare the reference catalog
+
+if reference_catalog_type.lower() == 'hawki':
+    reference_catalog = hawki.hawki_catalog()
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+    reference_catalog.rename_column('j_2mass_extrapolated', 'j_magnitude')
+elif reference_catalog_type.lower() == 'hst':
+    reference_catalog = hst.hst_catalog()
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+else:
+    sys.exit('Unsupported Reference Catalog - use either HawkI or HST!')
+
 # define pickle files
 obs_xmatch_pickle_file = os.path.join(result_dir, 'obs_xmatch.pkl')
 obs_collection_pickle_file = os.path.join(result_dir, 'obs_collection.pkl')
@@ -261,9 +273,6 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
 else:
     obs_collection = pickle.load(open(obs_collection_pickle_file, "rb"))
     print('Loaded pickled file {}'.format(obs_collection_pickle_file))
-
-if use_hawki_catalog:
-    distortion_calibration_reference_catalog = copy.deepcopy(reference_catalog)
 
 for obs in obs_collection.observations:
     file_name = obs.fpa_data.meta['DATAFILE']
@@ -546,8 +555,8 @@ for obs in obs_collection.observations:
             rms_y = np.std(y_idl_check - y_idl_siaf)
             print("rms_x =",rms_x)
             print("rms_y =",rms_y)
-            #assert rms_x < 0.05 # originally 1e-3
-            #assert rms_y < 0.05 # originally 1e-3
+            #assert rms_x < 0.005 # Mission requirement is <5 mas per axis
+            #assert rms_y < 0.005 # Mission requirement is <5 mas per axis
 
 print('================================================')
 print('END OF SCRIPT: ALL ANALYSES HAVE BEEN COMPLETED.')

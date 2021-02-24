@@ -3,8 +3,8 @@
 Authors
 -------
 
-    Johannes Sahlmann
     Tony Sohn
+    Original script by Johannes Sahlmann
 
 Major Modifications
 -------------------
@@ -32,6 +32,9 @@ from astropy.table import vstack
 
 import prepare_jwst_fpa_data
 import alignment
+from jwcf import hawki
+#from jwcf import hawki, hst
+
 
 # Loding in configurations from config file
 import jwst_fpa_config
@@ -43,6 +46,8 @@ observatory = jwst_fpa_config.observatory
 home_dir = jwst_fpa_config.home_dir
 local_dir = jwst_fpa_config.local_dir
 data_dir = jwst_fpa_config.data_dir
+
+reference_catalog_type = jwst_fpa_config.reference_catalog_type
 
 save_plot = jwst_fpa_config.save_plot
 verbose = jwst_fpa_config.verbose
@@ -87,11 +92,17 @@ write_calibration_result_file = jwst_fpa_config.write_calibration_result_file
 #=============================================================================
 # START OF MAIN PART
 
-# Load in the JWST Calibration Field (HAWKI Catalog)
-from jwcf import hawki
-reference_catalog = hawki.hawki_catalog()
-reference_catalog.rename_column('ra_deg', 'ra')
-reference_catalog.rename_column('dec_deg', 'dec')
+if reference_catalog_type.lower() == 'hawki':
+    reference_catalog = hawki.hawki_catalog()
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+    reference_catalog.rename_column('j_2mass_extrapolated', 'j_magnitude')
+elif reference_catalog_type.lower() == 'hst':
+    reference_catalog = hst.hst_catalog()
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+else:
+    sys.exit('Unsupported Reference Catalog - use either HawkI or HST!')
 
 print('{}\nFOCAL PLANE ALIGNMENT CALIBRATION'.format('='*100))
 
