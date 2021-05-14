@@ -48,20 +48,22 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
-#data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
 
+#data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
+#data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
+data_dir = os.path.join(home_dir,'NIRISS_distortion/')
+
 nominalpsf = True # or True --> This will have to be False for OTE-10 and 11
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
 observatory = 'JWST'
-prdopssoc_version = 'PRDOPSSOC-031'
+prdopssoc_version = 'PRDOPSSOC-034'
 
 reference_catalog_type = 'hawki'
 
@@ -231,7 +233,7 @@ elif reference_catalog_type.lower() == 'hst':
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
 else:
-    sys.exit('Unsupported Reference Catalog - use either HawkI or HST!')
+    sys.exit('Unsupported Reference Catalog. Only HawkI and HST catalogs are currently supported.')
 
 # define pickle files
 obs_xmatch_pickle_file = os.path.join(result_dir, 'obs_xmatch.pkl')
