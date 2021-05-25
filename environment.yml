@@ -17,4 +17,3 @@ dependencies:
     - git+https://github.com/Johannes-Sahlmann/pystrometry
     - git+https://github.com/tonysohn/pystortion
     - git+https://github.com/spacetelescope/jwst-calibration-field
-    - git+https://github.com/spacetelescope/jwst@0.17.1
