@@ -780,6 +780,16 @@ if show_attitude_evolution:
 
 # Last part: Write out a human-readable text file that shows the alignment results
 result = pickle.load(open(result_files[0], 'rb'))
+
+###
+### Issue: The distortion solution below should be the newer one. How would I take that as an in put?
+####
+#coeffs =
+#A = coeffs['Sci2IdlX']
+#B = coeffs['Sci2IdlY']
+#result['V3SciXAngle'] = np.arctan2(-A[1],B[1]) + results['calibrated_V3IdlYAngle']
+#result['V3SciYAngle'] = result.T['calibrated_V3IdlYAngle']
+
 result_table = result.T['instrument_name', 'aperture_name',
                         'calibrated_V2Ref', 'calibrated_V3Ref', 'calibrated_V3IdlYAngle',
                         'delta_calibrated_v2_position_arcsec',

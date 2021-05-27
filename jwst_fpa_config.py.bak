@@ -1,15 +1,5 @@
 """Configuration parameters for focal plane alignment.
 """
-##
-## TBD: Add config param for selecting which distortion parameters to use.
-##      This could either be default ones in the current SIAF, or
-##      the .txt file created from the jwst_distortion.py step.
-##      The "preferred" way would be to use the latter since we'd want to
-##      be in sync with the most updated SIAF params, especially the
-##      V3SciXAngle requires updated SIAF params to calculate correct value.
-##      However, if running jwst_fpa.py independently from jwst_distortion.py,
-##      user may want to just use the current SIAF params.
-##
 
 import os
 import numpy as np
@@ -21,11 +11,12 @@ local_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Data directory (location of all _cal.fits files)
 
-data_dir = os.path.join(home_dir, 'NIRCam/FGS1-NIRCam_alignment')
-#data_dir = os.path.join(home_dir, 'NIRCam/NIRCam-FGS2_alignment')
-
 #data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/FGS1-NIRISS_alignment')
 #data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/NIRISS-FGS2_alignment')
+
+#data_dir = os.path.join(home_dir, 'NIRCam/FGS1-NIRCam_alignment')
+#data_dir = os.path.join(home_dir, 'NIRCam/NIRCam-FGS2_alignment')
+data_dir = os.path.join(home_dir, 'TEL/OTE-10/FGS1-NIRCam_alignment/NRCA3')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-10/FGS1-FGS2_alignment/FGS1-NRCA3')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-10/FGS1-FGS2_alignment/NRCA3-FGS2')
 #data_dir = os.path.join(home_dir, 'TEL/OTE-11/FGS1-NIRISS_alignment')
@@ -46,6 +37,29 @@ if 1:
 ###################################################################
 
 
+##################################################################
+if 0:
+    alignment_reference_apertures                  = ['FGS1_FULL']
+    attitude_defining_apertures                    = ['FGS1_FULL']
+    calibration_alignment_reference_aperture_names = ['FGS1_FULL']
+    calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
+    apply_fpa_calibration_array                    = [False]
+    apertures_to_calibrate                         = ['NIS_CEN']
+##################################################################
+
+
+
+
+##################################################################
+if 0:
+    alignment_reference_apertures                  = ['NIS_CEN']
+    attitude_defining_apertures                    = ['NIS_CEN']
+    calibration_alignment_reference_aperture_names = ['NIS_CEN']
+    calibration_attitude_defining_aperture_names   = ['NIS_CEN']
+    apply_fpa_calibration_array                    = [False]
+    apertures_to_calibrate                         = ['FGS2_FULL']
+##################################################################
+
 ###################################################################
 if 0:
     alignment_reference_apertures                  = ['NRCA3_FULL']
@@ -57,26 +71,6 @@ if 0:
 ###################################################################
 
 
-
-##################################################################
-if 0:
-    alignment_reference_apertures                  = ['FGS1_FULL']
-    attitude_defining_apertures                    = ['FGS1_FULL']
-    calibration_alignment_reference_aperture_names = ['FGS1_FULL']
-    calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
-    apply_fpa_calibration_array                    = [False]
-    apertures_to_calibrate                         = ['NIS_CEN']
-##################################################################
-
-##################################################################
-if 0:
-    alignment_reference_apertures                  = ['NIS_CEN']
-    attitude_defining_apertures                    = ['NIS_CEN']
-    calibration_alignment_reference_aperture_names = ['NIS_CEN']
-    calibration_attitude_defining_aperture_names   = ['NIS_CEN']
-    apply_fpa_calibration_array                    = [False]
-    apertures_to_calibrate                         = ['FGS2_FULL']
-##################################################################
 
 
 #############################################################################
@@ -94,7 +88,7 @@ save_plot = True
 verbose = True
 verbose_figures = True
 #visit_groups = [[0, 1, 2], [3, 4, 5]]
-visit_groups = [0] ### TBD: Figure out what this parameter is used for
+visit_groups = [0] ### TBD: This is probably used for HST multi-epoch analysis only
 
 # Local distortion fit in v2, v3
 k = 8 # or 6 or 4
