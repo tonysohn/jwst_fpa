@@ -30,8 +30,7 @@ import alignment
 
 from pystortion import distortion
 
-from jwcf import hawki
-#from jwcf import hawki, hst
+from jwcf import hawki, hst
 
 import pysiaf
 from pysiaf.constants import _DATA_ROOT
@@ -56,7 +55,7 @@ home_dir = os.environ['HOME']
 
 #data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
-data_dir = os.path.join(home_dir,'NIRISS_distortion/')
+data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/HST_TEST')
 
 nominalpsf = True # or True --> This will have to be False for OTE-10 and 11
 
@@ -65,7 +64,7 @@ working_dir = os.path.join(data_dir, 'distortion_calibration')
 observatory = 'JWST'
 prdopssoc_version = 'PRDOPSSOC-034'
 
-reference_catalog_type = 'hawki'
+reference_catalog_type = 'hst'
 
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle

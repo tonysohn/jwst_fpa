@@ -492,6 +492,7 @@ def crossmatch_fpa_data(parameters):
             # compute V2/V3: # IDL frame in degrees ->  V2/V3_tangent_plane in arcsec
             obs.star_catalog = compute_idl_to_tel_in_table(obs.star_catalog, aperture, method=idl_tel_method)
 
+            # TBD: Try astroalign? --> my first attempt didn't work
 
             ######################################################################################
             #
