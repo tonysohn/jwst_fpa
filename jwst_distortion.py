@@ -33,9 +33,8 @@ from pystortion import distortion
 from jwcf import hawki, hst
 
 import pysiaf
+from pysiaf.utils import tools
 from pysiaf.constants import _DATA_ROOT
-
-deg2mas =  u.deg.to(u.mas)
 
 #####################################
 plt.close('all')
@@ -52,19 +51,44 @@ home_dir = os.environ['HOME']
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
-
 #data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
 data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/HST_TEST')
 
-nominalpsf = True # or True --> This will have to be False for OTE-10 and 11
+#####################################################################
+#####
+##### For LRE3
+#####
+#####################################################################
+#####
+####
+###
+##
+#
+#data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS1_distortion/')
+#data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS2_distortion/')
+#data_dir = os.path.join(home_dir,'LRE3/OTE-10/NIRCam_distortion/')
+data_dir = os.path.join(home_dir,'LRE3/OTE-11/NIRISS_distortion/')
+#
+##
+###
+####
+#####
+#####################################################################
+
+
+nominalpsf = False # or True --> This will have to be False for OTE-10 and 11
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
 observatory = 'JWST'
 prdopssoc_version = 'PRDOPSSOC-034'
 
+<<<<<<< HEAD
 reference_catalog_type = 'hst'
+=======
+reference_catalog_type = 'hawki' # or 'hst'
+>>>>>>> lre3
 
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle
@@ -199,8 +223,8 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              # 'show_extracted_sources': False}
 
     im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern, standardized_data_dir,
-                                            parameters=extraction_parameters,
-                                            overwrite_source_extraction=overwrite_source_extraction)
+                                                    parameters=extraction_parameters,
+                                                    overwrite_source_extraction=overwrite_source_extraction)
 
 
 # 1/0
@@ -226,11 +250,12 @@ if reference_catalog_type.lower() == 'hawki':
     reference_catalog = hawki.hawki_catalog()
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
-    reference_catalog.rename_column('j_2mass_extrapolated', 'j_magnitude')
+    reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
 elif reference_catalog_type.lower() == 'hst':
     reference_catalog = hst.hst_catalog()
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
+    reference_catalog['j_magnitude'] = reference_catalog['j_mag_vega']
 else:
     sys.exit('Unsupported Reference Catalog. Only HawkI and HST catalogs are currently supported.')
 
@@ -363,9 +388,7 @@ for obs in obs_collection.observations:
     # pystortion.distortion.displayRotScaleSkew(lazAC, i=evaluation_frame_number,
     #                                  scaleFactor=scale_factor_for_residuals)
 
-    # xy_unit = u.arcmin
     xy_unit = u.arcsec
-    # xy_scale = approximatePixelScale_deg * deg2mas
     xy_unitStr = xy_unit.to_string()
     xy_scale = 1.
     lazAC.plotResiduals(evaluation_frame_number, plot_dir, name_seed,
@@ -392,7 +415,6 @@ for obs in obs_collection.observations:
     np.mean(lazAC.rms[1, :]), np.mean(lazAC.rms[1, :] * scale_factor_for_residuals)))
 
     if determine_siaf_parameters:
-        from pysiaf.utils import tools
 
         siaf_aper = siaf[aperture_name]
 
@@ -426,15 +448,15 @@ for obs in obs_collection.observations:
 
         # Take out Y-rotation and offsets in both forward and reverse coefficients
         # This step is required to make the results consistent with SIAF convention.
-        # By default, the polynomial coefficients derived so far include not only
+        # By default, the polynomial coefficients derived up until now include not only
         # geometric distortion-related component but also lateral offsets in X, Y, and rotation.
         # Corrections for these latter components are carried out via aperture-specific
         # alignment parmeters (V2Ref, V3Ref, and V3IdlAngle). So, here we take out contributions
         # from these three parameters using pysiaf.polynomial.add_rotation as below.
         AR = copy.deepcopy(A)
         BR = copy.deepcopy(B)
-        AR[0] = 0
-        BR[0] = 0
+        AR[0] = 0 # Set the first coeff (zero point) to zero
+        BR[0] = 0 # Set the first coeff (zero point) to zero
         (AR, BR) = pysiaf.polynomial.add_rotation(AR, BR, -1*linear_parameters_prep['rotation_y'])
         CR = copy.deepcopy(C)
         DR = copy.deepcopy(D)

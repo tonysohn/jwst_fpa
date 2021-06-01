@@ -658,7 +658,7 @@ def crossmatch_fpa_data(parameters):
             # dictionary that defines the names of columns in the star/reference_catalog for use later on
             fieldname_dict = {}
             fieldname_dict['star_catalog'] = {}  # observed
-            fieldname_dict['reference_catalog'] = {}  # Gaia
+            fieldname_dict['reference_catalog'] = {}  # reference
 
             if idl_tel_method == 'spherical':
                 fieldname_dict['reference_catalog']['position_1'] = 'v2_spherical_arcsec'
@@ -667,14 +667,16 @@ def crossmatch_fpa_data(parameters):
                 fieldname_dict['reference_catalog']['position_1'] = 'v2_tangent_arcsec'
                 fieldname_dict['reference_catalog']['position_2'] = 'v3_tangent_arcsec'
 
-            if 'Name: J/A+A/563/A80/jwstcf' in reference_catalog.meta['comments']:
-                reference_catalog_identifier = 'ID'  # HAWK-I
-                fieldname_dict['reference_catalog']['sigma_position_1'] = 'ra_error_mas'
-                fieldname_dict['reference_catalog']['sigma_position_2'] = 'dec_error_mas'
-            else:
-                reference_catalog_identifier = 'source_id'  # Gaia
-                fieldname_dict['reference_catalog']['sigma_position_1'] = 'ra_error'
-                fieldname_dict['reference_catalog']['sigma_position_2'] = 'dec_error'
+            # For HawkI and HST catalogs
+            reference_catalog_identifier = 'ID'
+            fieldname_dict['reference_catalog']['sigma_position_1'] = 'ra_error_mas'
+            fieldname_dict['reference_catalog']['sigma_position_2'] = 'dec_error_mas'
+
+            # For Gaia catalog (which is not used for JWST at this point)
+            #reference_catalog_identifier = 'source_id'  # Gaia
+            #fieldname_dict['reference_catalog']['sigma_position_1'] = 'ra_error'
+            #fieldname_dict['reference_catalog']['sigma_position_2'] = 'dec_error'
+
             fieldname_dict['reference_catalog']['identifier'] = reference_catalog_identifier
             fieldname_dict['reference_catalog']['position_unit'] = u.arcsecond
             fieldname_dict['reference_catalog']['sigma_position_unit'] = u.milliarcsecond

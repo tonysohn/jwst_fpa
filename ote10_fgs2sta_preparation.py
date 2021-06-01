@@ -23,7 +23,6 @@ from astropy.table import hstack
 from astropy import units as u
 
 import prepare_jwst_fpa_data
-import alignment
 
 import pysiaf
 import photutils
@@ -39,13 +38,13 @@ plt.close('all')
 idl_tel_method = 'spherical'
 
 home_dir = os.environ['HOME']
-data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS-J_alignment')
+data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS1ics_to_Jframe')
 #base_dir = os.path.join(data_dir,'distortion_calibration')
-working_dir = os.path.join(data_dir, 'fgs2sta')
+working_dir = os.path.join(data_dir, 'fgs_to_j')
 nominalpsf = False # or True
 
 observatory = 'JWST'
-prdopssoc_version = 'PRDOPSSOC-031'
+prdopssoc_version = 'PRDOPSSOC-034'
 #prdopssoc_version = 'PRDOPSSOC-H-015'
 
 use_hawki_catalog = True
@@ -97,6 +96,8 @@ from jwcf import hawki
 reference_catalog = hawki.hawki_catalog()
 reference_catalog.rename_column('ra_deg', 'ra')
 reference_catalog.rename_column('dec_deg', 'dec')
+reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
+
 
 obs_collection = []
 standardized_data_dir = os.path.join(working_dir,'fpa_data')

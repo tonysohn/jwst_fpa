@@ -8,7 +8,7 @@ Authors
 
 Use
 ---
-
+    Used by the jwst_fpa.py script
 """
 
 import os
@@ -30,15 +30,15 @@ from pystortion.utils import plot_spatial_difference
 
 deg2arcsec = u.deg.to(u.arcsec)
 
-# these are the aperture parameters that define the alignment
 alignment_definition_attributes = {'default': ['V3IdlYAngle', 'V2Ref', 'V3Ref']}
 
-alignment_parameter_mapping = OrderedDict({'default': {'v3_angle': 'V3IdlYAngle', 'v2_position': 'V2Ref', 'v3_position': 'V3Ref'},
-                              'unit': {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
-                              'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'}})
+alignment_parameter_mapping = OrderedDict(
+                              {'default': {'v3_angle': 'V3IdlYAngle', 'v2_position': 'V2Ref', 'v3_position': 'V3Ref'},
+                               'unit': {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
+                               'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'}})
 
 class AlignmentObservation(object):
-    """Class for focal plane alignment obervations of Space Telescopes, e.g. HST and JWST
+    """Class for focal plane alignment obervations for JWST
 
     attributes:
         reference_catalog : Absolute reference catalog of stars
@@ -46,14 +46,13 @@ class AlignmentObservation(object):
 
     """
 
-    def __init__(self, observatory, instrument):
-        self.observatory = observatory
+    def __init__(self, instrument):
         self.instrument = instrument
-        self.fpa_name_seed = '{}_{}'.format(self.observatory, self.instrument)
+        self.fpa_name_seed = '{}_{}'.format(self.instrument)
 
     def compute_v2v3(self, aperture, V3IdlYAngle_deg=None, V2Ref_arcsec=None, V3Ref_arcsec=None, verbose=False,
                      method='planar_approximation', use_tel_boresight=True, input_coordinates='tangent_plane'):
-        """Perform IDL -> V2V3 transformation (tangent and spherical).
+        """Perform (x_idl, y_idl) -> (v2, v3) transformation (tangent and spherical).
 
         It is assumed that self.star_catalog['x_idl_arcsec'] are planar coordinates.
 
@@ -96,7 +95,7 @@ class AlignmentObservation(object):
                                                         self.reference_point_deg[1]
 
             if aperture.InstrName == 'NIRISS':
-                print('ATTENTION: special fix for NIRISS')
+                print('ATTENTION: special fix for NIRISS required')
                 self.star_catalog['v2_spherical_deg'] -= 360.
 
             self.star_catalog['v2_spherical_arcsec'] = self.star_catalog['v2_spherical_deg'] * deg2arcsec
@@ -117,9 +116,8 @@ class AlignmentObservationCollection(object):
     2017-10-10  JSA STScI/AURA
 
     """
-    def __init__(self, observations, observatory):
+    def __init__(self, observations):
         self.observations = np.array(observations)
-        self.observatory = observatory
         self.set_basic_properties()
 
     def set_basic_properties(self):
@@ -204,7 +202,7 @@ class AlignmentObservationCollection(object):
 
         self.T['group_id'] = np.zeros(self.n_observations).astype(np.int)
 
-        if (self.observatory == 'JWST') and (column_name == 'obs_id'):
+        if (column_name == 'obs_id'):
             # special obsid that removes the parallel sequence id
             self.T['obsid_special'] = ['{}{}'.format(s[0:16], s[17:26]) for s in self.T['DATAFILE']]
             for jj, key in enumerate(np.array(self.T.group_by('obsid_special').groups.keys)):
@@ -267,7 +265,8 @@ class AlignmentObservationCollection(object):
 def apply_focal_plane_calibration(obs_collection, apertures_to_calibrate, calibrated_data,
                                   verbose=True, field_selection='calibrated',
                                   calibrated_obs_collection=None):
-    """Modify the alignment parameters of the used apertures to reflect the result of a previous alignment run.
+    """This is for modifying the (V2Ref, V3Ref, V3IdlYAngle) params of the apertures
+       to apply the results from a previous alignment run.
 
     Set the alignment parameters for the apertures_to_calibrate as determined in an independent calibration run.
 
@@ -830,25 +829,6 @@ def determine_attitude(obs_set, parameters):
 
     attitude = pysiaf.rotations.attitude(V2Ref, V3Ref, ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
 
-    # show offset between measured positions and reference positions using initial attitude
-    if 0:
-        plot_aperture_names = ['FGS1', 'FGS2', 'FGS3', 'JWFCFIX', 'JWFC1FIX', 'JWFC2FIX', 'IUVISCTR', 'IUVIS1FIX',
-                               'IUVIS2FIX']
-        data = {}
-        reference_catalog = vstack([compute_sky_to_tel_in_table(obs.reference_catalog_matched, attitude, obs.aperture,
-                                                                use_tel_boresight=parameters['use_tel_boresight']) for
-                                    obs in obs_set.observations], metadata_conflicts='silent')
-        star_catalog = vstack([compute_idl_to_tel_in_table(obs.star_catalog_matched, obs.aperture,
-                                                           use_tel_boresight=parameters['use_tel_boresight'],
-                                                           method=parameters['idl_tel_method']) for obs in
-                               obs_set.observations], metadata_conflicts='silent')
-
-        data['reference'] = {'x': np.array(reference_catalog['v2_tangent_arcsec']),
-                             'y': np.array(reference_catalog['v3_tangent_arcsec'])}
-        data['comparison_0'] = {'x': np.array(star_catalog['v2_tangent_arcsec']),
-                                'y': np.array(star_catalog['v3_tangent_arcsec'])}
-        plot_spatial_difference(data, siaf=parameters['siaf'], plot_aperture_names=plot_aperture_names)
-
     for i, index in enumerate(attitude_order_index):
 
         # with i increasing, the number of used observations increases
@@ -942,6 +922,7 @@ def determine_attitude(obs_set, parameters):
                 dec_attitude_deg += correction_dec_attitude_deg
                 pa_attitude_deg  += correction_V3IdlYAngle_deg
 
+            # Update the attitude using the corrected (ra, dec, pa)
             attitude = pysiaf.rotations.attitude(V2Ref, V3Ref, ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
 
             reference_catalog = vstack([compute_sky_to_tel_in_table(obs.reference_catalog_matched, attitude, obs.aperture,
@@ -1038,11 +1019,6 @@ def determine_attitude(obs_set, parameters):
 
             correction_ra_attitude_deg  = attenuation_factor * (ra_attitude_deg_intermediate - ra_attitude_deg)
             correction_dec_attitude_deg = attenuation_factor * (dec_attitude_deg_intermediate - dec_attitude_deg)
-
-            #print(correction_ra_attitude_deg, correction_dec_attitude_deg)
-            #1/0
-            #### So far looks good
-
 
             if verbose:
                 print('correction_V3IdlYAngle_deg = {}'.format(correction_V3IdlYAngle_deg))
@@ -1411,16 +1387,9 @@ def determine_focal_plane_alignment(obs_collection, parameters):
                     plt.close('all')
                     obs = obs_collection.observations[set_index]
 
-#                    if obs.aperture.AperName in 'FGS1 FGS2 FGS3'.split():
-#                        attitude_index = np.where((obs_collection.T['attitude_id'][set_index] == obs_collection.T['attitude_id']) &
-#                                                  (obs_collection.T['INSTRUME'] != 'SUPERFGS'))[0][0]
-#                        alignment_reference_attitude = obs_collection.observations[attitude_index].corrected_attitude['attitude']
-#                    else:
-#                        alignment_reference_attitude = copy.deepcopy(obs.corrected_attitude['attitude'])
-
                     alignment_reference_attitude = copy.deepcopy(obs.corrected_attitude['attitude'])
 
-                    # compute V2,V3 coordinates of Gaia stars using current attitude
+                    # compute V2,V3 coordinates of reference stars using current attitude
                     obs.reference_catalog_matched = compute_sky_to_tel_in_table(obs.reference_catalog_matched,
                                                                                 alignment_reference_attitude, obs.aperture)
 
@@ -1684,9 +1653,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
     siaf = obs_collection.info_dict['siaf']
     rotation_name = obs_collection.info_dict['rotation_name']
 
-##    tvs_results['visit_groups'] = visit_groups
-    observatory = obs_collection.observatory
-
     magnification_factor = parameters['magnification_factor']
 
     for group_id in np.unique(obs_collection.T['group_id']):
@@ -1778,16 +1744,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
 #                if (obs_collection.T['group_id'][i] == 0):
                 plt.plot(obs.star_catalog_matched['v2_spherical_arcsec'], obs.star_catalog_matched['v3_spherical_arcsec'], 'k.', ms=1, color='0.5')
 
-#                elif obs_collection.T['INSTRUME'][i] == 'SUPERFGS':
-#                    # this plots the matched stars as measured by the FGS into V2V3 an the FGS pickles
-#                    # the positions of stars reflect the latest TVS matrix?
-#                    plt.plot(obs.star_catalog_matched['v2_spherical_arcsec'], obs.star_catalog_matched['v3_spherical_arcsec'], \
-#                            marker=obs_collection.info_dict['visit_groups_parameters']['star_marker'][visit_group_index],
-#                            mec=obs_collection.info_dict['visit_groups_parameters']['color'][visit_group_index],
-#                            mfc='none',
-#                            ls='None',
-#                            ms=3)
-
                 original_reference_position = np.array([obs.aperture.V2Ref, obs.aperture.V3Ref])
                 #plot_color = obs_collection.info_dict['visit_groups_parameters']['color'][visit_group_index]
 
@@ -1801,7 +1757,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
                 plt.plot(calibrated_reference_position[0], calibrated_reference_position[1], 'bo') #),mfc=plot_color, mec=plot_color)
                 plt.errorbar(calibrated_reference_position[0], calibrated_reference_position[1],
                             xerr=calibrated_uncertainty[0], yerr=calibrated_uncertainty[1], fmt='none')
-#                            ecolor=plot_color)
 
                 plt.plot([original_reference_position[0], calibrated_reference_position[0]],
                          [original_reference_position[1], calibrated_reference_position[1]],
@@ -1825,7 +1780,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
 
             ############################
             # V2,V3 offsets summary plot
-
 
             aperture_groups = ['cameras']
             unique_aperture_names = unique_aperture_names_all
@@ -1873,7 +1827,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
                                               obs_visit_index],
                                           yerr=obs_collection.T['sigma_{}_v3_position_arcsec'.format(offset_specifier)][obs_index][
                                               obs_visit_index], fmt='none', ecolor=plot_color)
-                        # if aperture_group == 'cameras':
                         if 1:
                             # show effect of attitude uncertainty on alignment results
                             attitude_pa_uncertainty_rad = np.array([obs_collection.observations[obs_index][jj].corrected_attitude['sigma_pa_arcsec_correction'].to(u.rad).value for jj in obs_visit_index])

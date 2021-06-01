@@ -11,8 +11,14 @@ Major Modifications
 
 Use
 ---
-   From ipython session:
-   > run jwst_fpa
+    From ipython session:
+    > run jwst_fpa.py
+
+To be done
+----------
+    - Script does not work correctly when having multiple inputs for apertures_to_calibrate.
+      Check on how the results are being stored for each aperture.
+    - Add an option to change simple parameters such as detection threshold.
 
 """
 
@@ -41,7 +47,7 @@ import jwst_fpa_config
 import importlib
 importlib.reload(jwst_fpa_config) # reload config file in case changes are made while in session
 
-observatory = jwst_fpa_config.observatory
+#observatory = jwst_fpa_config.observatory
 
 home_dir = jwst_fpa_config.home_dir
 local_dir = jwst_fpa_config.local_dir
@@ -102,7 +108,7 @@ elif reference_catalog_type.lower() == 'hst':
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
 else:
-    sys.exit('Unsupported Reference Catalog - use either HawkI or HST!')
+    sys.exit('Unsupported Reference Catalog - use either HawkI or HST catlog.')
 
 print('{}\nFOCAL PLANE ALIGNMENT CALIBRATION'.format('='*100))
 
@@ -187,7 +193,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['verbose_figures'] = verbose_figures
         crossmatch_parameters['save_plot'] = save_plot
         crossmatch_parameters['plot_dir'] = crossmatch_dir
-        crossmatch_parameters['observatory'] = observatory
         crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
         crossmatch_parameters['overwrite_pm_correction'] = False
         crossmatch_parameters['verbose'] = verbose
@@ -197,6 +202,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec
         crossmatch_parameters['rejection_level_sigma'] = 3
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
+#        crossmatch_parameters['observatory'] = observatory
 #        crossmatch_parameters['camera_names'] = ['NIRISS','FGS1','FGS2']
 #        crossmatch_parameters['xmatch_radius_camera'] = 0.5 * u.arcsec
 #        crossmatch_parameters['xmatch_radius_fgs'] = None
@@ -205,7 +211,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)
 
         # generate an AlignmentObservationCollection object
-        obs_collection = alignment.AlignmentObservationCollection(observations, observatory)
+        obs_collection = alignment.AlignmentObservationCollection(observations)
 
         # obs_collection.group_by('PA_V3')
         # obs_collection.group_by('pointing_pa_v3')
@@ -418,7 +424,7 @@ if show_summary_results:
                 T = vstack((T, copy.deepcopy(obs_collection.T)))
 
         obs_collection = []
-        obs_collection = alignment.AlignmentObservationCollection(observations, 'JWST')
+        obs_collection = alignment.AlignmentObservationCollection(observations)
         obs_collection.T = T
         obs_collection.sort_by('MJD')
         obs_collection.group_by('PROGRAM_VISIT')
@@ -455,6 +461,10 @@ if show_summary_results:
                                save_plot=save_plot, plot_dir=plot_dir)
 
 
+        ######
+        ###### Below is for when camera evolution is enabled. Probably not useful for JWST.
+        ###### TBD: Remove all parameters ONLY used here (e.g., camera_names?)
+        ######
         if show_camera_evolution:
             obs_collection.T['alignment_fit_rms_x'] = np.array([obs.lazAC.rms[1] for obs in obs_collection.observations])[:, 0]
             obs_collection.T['alignment_fit_rms_y'] = np.array([obs.lazAC.rms[1] for obs in obs_collection.observations])[:, 1]
@@ -474,9 +484,9 @@ if show_summary_results:
             n_figure_columns = 3
             n_figure_rows = 1
             fig, axes = plt.subplots(n_figure_rows, n_figure_columns,
-                                    figsize=(n_figure_columns * 8, n_figure_rows * 6),
-                                    facecolor='w', edgecolor='k', sharex=False, sharey=False,
-                                    squeeze=False)
+                                     figsize=(n_figure_columns * 8, n_figure_rows * 6),
+                                     facecolor='w', edgecolor='k', sharex=False, sharey=False,
+                                     squeeze=False)
 
             for j, camera_name in enumerate(camera_names):
 
@@ -563,7 +573,6 @@ if show_summary_results:
 
                 # obs_collection.T[tex_columns][np.hstack((i1, i2))].write(os.path.join(plot_dir, '{}_alignment_evolution.tex'.format(camera_name)), format='ascii.latex', formats=formats)
 
-                # 1/0
                 for epoch, visit_group in enumerate(info_dict['visit_groups']):
                     obs_visit_index = \
                         np.where(np.in1d(obs_collection.T['group_id'][i1], visit_group))[0]
@@ -662,10 +671,10 @@ if show_summary_results:
         if 0:
             obs_collection.T.sort('DATAFILE')
             obs_collection.T['DATAFILE', 'INSTRUME', 'AperName', 'number_of_measured_stars', 'number_of_reference_stars', 'number_of_matched_stars', 'number_of_used_stars_for_aperture_correction'].write(sys.stdout, format='ascii.latex', formats={'DATAFILE': lambda s: s.replace('_','\_'), 'AperName': lambda s: s.replace('_','\_')})
-            # obs_collection.T['PROGRAM_VISIT', 'INSTRUME', 'AperName', 'number_of_measured_stars', 'number_of_reference_stars', 'number_of_matched_stars', 'number_of_used_stars_for_aperture_correction'].write(os.path.join(out_dir, 'xmatch_stats.tex'), format='ascii.latex', overwrite=True)
-            # 1/0
 
-
+###
+### Do we need below? Possibly
+###
 if show_attitude_evolution:
     attitude_index = [i for i in range(obs_collection.n_observations) if obs_collection.T['AperName'][i] == attitude_defining_aperture_name]
 
@@ -780,16 +789,30 @@ if show_attitude_evolution:
 
 # Last part: Write out a human-readable text file that shows the alignment results
 result = pickle.load(open(result_files[0], 'rb'))
-result_table = result.T['instrument_name', 'aperture_name',
-                        'calibrated_V2Ref', 'calibrated_V3Ref', 'calibrated_V3IdlYAngle',
+
+###
+### Issue: The distortion solution below should be the newer one. How would I take that as an in put?
+####
+#coeffs =
+#A = coeffs['Sci2IdlX']
+#B = coeffs['Sci2IdlY']
+#result['V3SciXAngle'] = np.arctan2(-A[1],B[1]) + results['calibrated_V3IdlYAngle']
+#result['V3SciYAngle'] = result.T['calibrated_V3IdlYAngle']
+
+result_table = result.T['aperture_name', 'calibrated_V3IdlYAngle',
+#                        'calibrated_V3SciXAngle', 'calibrated_V3SciYAngle',
+                        'calibrated_V2Ref', 'calibrated_V3Ref',
                         'delta_calibrated_v2_position_arcsec',
                         'delta_calibrated_v3_position_arcsec',
                         'delta_calibrated_v3_angle_arcsec']
-result_table.rename_column('instrument_name','camera')
-result_table.rename_column('aperture_name','aperture')
-result_table.rename_column('delta_calibrated_v2_position_arcsec','V2Ref_difference')
-result_table.rename_column('delta_calibrated_v3_position_arcsec','V3Ref_difference')
-result_table.rename_column('delta_calibrated_v3_angle_arcsec','V3IdlYAngle_difference_arcsec')
+#result_table.rename_column('instrument_name','camera')
+result_table.rename_column('aperture_name','AperName')
+result_table.rename_column('calibrated_V3IdlYAngle','V3IdlYangle')
+#result_table.rename_column('calibrated_V3SciXangle','V3SciXangle')
+#result_table.rename_column('calibrated_V3SciYangle','V3SciYangle')
+result_table.rename_column('delta_calibrated_v2_position_arcsec','diff_V2Ref')
+result_table.rename_column('delta_calibrated_v3_position_arcsec','diff_V3Ref')
+result_table.rename_column('delta_calibrated_v3_angle_arcsec','diff_V3IdlYAngle')
 
 result_txt = os.path.join(result_dir,'fpa_results.csv')
 result_table.write(result_txt, format='ascii.fixed_width', comment=False, delimiter=',', bookend=False, overwrite=True)

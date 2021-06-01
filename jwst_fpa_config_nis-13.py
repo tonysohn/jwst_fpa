@@ -13,6 +13,7 @@ data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/FGS1-NIRISS_alignment')
 
 reference_catalog_type = 'hawki'
 nominalpsf = True
+distortion_coefficients_file = ''
 
 ##################################################################
 alignment_reference_apertures                  = ['FGS1_FULL']
