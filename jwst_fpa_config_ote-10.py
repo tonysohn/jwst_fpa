@@ -1,31 +1,22 @@
 import os
 import numpy as np
 
-observatory = 'JWST'
-
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'LRE3/OTE-10/FGS1-NIRCam_alignment/NRCA3')
-#data_dir = os.path.join(home_dir, 'LRE3/OTE-10/FGS2-NIRCam_alignment/NRCA3')
+data_dir = os.path.join(home_dir, 'OTE-10/FGS1-NIRISS_alignment')
 
-reference_catalog_type = 'hawki' # This will always be hawki for FPA -- don't use hst.
-nominalpsf = False
+reference_catalog_type = 'hawki'
+nominalpsf = True
 
-###################################################################
+##################################################################
 alignment_reference_apertures                  = ['FGS1_FULL']
 attitude_defining_apertures                    = ['FGS1_FULL']
 calibration_alignment_reference_aperture_names = ['FGS1_FULL']
 calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
 apply_fpa_calibration_array                    = [False]
-apertures_to_calibrate                         = ['NRCA3_FULL']
-#
-#  If doing all apertures together, use the following option
-#  Doesn't WORK!! Do them separately for now.
-#
-#apertures_to_calibrate = ['NRCA1_FULL','NRCA2_FULL','NRCA3_FULL','NRCA4_FULL','NRCA5_FULL',
-#                          'NRCB1_FULL','NRCB2_FULL','NRCB3_FULL','NRCB4_FULL','NRCB5_FULL',]
-###################################################################
+apertures_to_calibrate                         = ['NRCA3']
+##################################################################
 
 save_plot = True
 verbose = True

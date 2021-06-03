@@ -4,16 +4,16 @@
 import os
 import numpy as np
 
-observatory = 'JWST'
-
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/FGS1-NIRISS_alignment')
+#data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/FGS1-NIRISS_alignment')
+data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/TEST')
 
-reference_catalog_type = 'hawki'
 nominalpsf = True
-distortion_coefficients_file = ''
+reference_catalog_type = 'hawki'
+distortion_coefficients_file = None
+#distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 
 ##################################################################
 alignment_reference_apertures                  = ['FGS1_FULL']
@@ -55,7 +55,7 @@ show_attitude_evolution = False
 # This is used for Monte-Carlo type simulations, but just keep it to [0] for direct solutions.
 random_realisations = [0] # for e.g., 9 random simulations, set this to "np.arange(9)"
 
-correct_dva = False # or True: Applies only to HST camera apertures, FGS data is already DVA corrected
+correct_dva = False # or True: Applies only to HST camera apertures for now. Later for JWST.
 
 # Rotation parameter that will be minimized during the iterative aperture correction
 rotation_name = 'Rotation in Y' # or 'Global Rotation'

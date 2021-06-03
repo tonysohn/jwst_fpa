@@ -34,20 +34,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
 
-from astropy.table import vstack
+from astropy.time import Time
+from astropy.table import Table, vstack
 
 import prepare_jwst_fpa_data
 import alignment
-from jwcf import hawki
-#from jwcf import hawki, hst
-
+from jwcf import hawki, hst
 
 # Loding in configurations from config file
 import jwst_fpa_config
 import importlib
 importlib.reload(jwst_fpa_config) # reload config file in case changes are made while in session
-
-#observatory = jwst_fpa_config.observatory
 
 home_dir = jwst_fpa_config.home_dir
 local_dir = jwst_fpa_config.local_dir
@@ -58,9 +55,14 @@ reference_catalog_type = jwst_fpa_config.reference_catalog_type
 save_plot = jwst_fpa_config.save_plot
 verbose = jwst_fpa_config.verbose
 verbose_figures = jwst_fpa_config.verbose_figures
-#analysis_name = jwst_fpa_config.analysis_name
 visit_groups = jwst_fpa_config.visit_groups
 nominalpsf = jwst_fpa_config.nominalpsf
+#
+# Jun 03, 2021: For now, below is only used to calculate V3SciXAngle.
+# TBD: Make changes to prepare_jwst_fpa_data.py so that it actually uses the
+#      input distortion coefficient file for both FGS and SI.
+#
+distortion_coefficients_file = jwst_fpa_config.distortion_coefficients_file
 
 k = jwst_fpa_config.k
 k_attitude_determination = jwst_fpa_config.k_attitude_determination
@@ -189,6 +191,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters = {}
         crossmatch_parameters['pickle_file'] = obs_xmatch_pickle_file
         crossmatch_parameters['overwrite'] = overwrite_obs_xmatch_pickle
+        crossmatch_parameters['data_dir'] = data_dir
         crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
         crossmatch_parameters['verbose_figures'] = verbose_figures
         crossmatch_parameters['save_plot'] = save_plot
@@ -202,7 +205,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec
         crossmatch_parameters['rejection_level_sigma'] = 3
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
-#        crossmatch_parameters['observatory'] = observatory
+        crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
 #        crossmatch_parameters['camera_names'] = ['NIRISS','FGS1','FGS2']
 #        crossmatch_parameters['xmatch_radius_camera'] = 0.5 * u.arcsec
 #        crossmatch_parameters['xmatch_radius_fgs'] = None
@@ -213,8 +216,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         # generate an AlignmentObservationCollection object
         obs_collection = alignment.AlignmentObservationCollection(observations)
 
-        # obs_collection.group_by('PA_V3')
-        # obs_collection.group_by('pointing_pa_v3')
         obs_collection.group_by('obs_id')
         # unique observation index for cross-identification
         # obs_collection.generate_attitude_groups()
@@ -224,7 +225,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
 
         obs_collection.T['INDEX'] = np.arange(len(obs_collection.T))
 
-        # correct for DVA
+        # correct for DVA -- TBD: Should add a dva correction routine
         if correct_dva:
             correct_dva_parameters = {}
             correct_dva_parameters['dva_dir'] = dva_dir
@@ -233,6 +234,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
             obs_collection = prepare_jwst_fpa_data.correct_dva(obs_collection, correct_dva_parameters)
 
         pickle.dump(obs_collection, open(obs_collection_pickle_file, "wb"))
+
     else:
         obs_collection = pickle.load(open(obs_collection_pickle_file, "rb"))
         print('Loaded pickled file {}'.format(obs_collection_pickle_file))
@@ -320,7 +322,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         apertures_to_calibrate = [name for name in apertures_to_calibrate if name in restrict_analysis_to_these_apertures]
 
     fpa_parameters['apertures_to_calibrate'] = apertures_to_calibrate
-
     fpa_parameters['apply_fpa_calibration'] = apply_fpa_calibration
     # fpa_parameters['skip_temporary_alignment_for_aligned_apertures'] = skip_temporary_alignment_for_aligned_apertures
     fpa_parameters['skip_temporary_alignment_for_aligned_apertures'] = fpa_parameters['apply_fpa_calibration']
@@ -365,16 +366,12 @@ if show_summary_results:
     print('='*100)
     print('GENERATING PLOTS ...')
     save_plot = True
-    #summary_results_dir = os.path.join(home_dir, 'jwst/tel/hst/focal_plane_calibration/pipeline/')
-    #summary_results_dir = os.path.join(working_dir)
-    #result_files = glob.glob(os.path.join(summary_results_dir, '*/results/{}/alignment_results_*.pkl'.format(analysis_name)))
 
     plot_dir  = os.path.join(working_dir, 'plots')
     for dir in [plot_dir]:
         if os.path.isdir(dir) is False:
             os.makedirs(dir)
 
-#    tvs_results = {}
     siaf = copy.deepcopy(original_siaf)
 
     for iii, alignment_reference_aperture_name in enumerate(alignment_reference_apertures):
@@ -444,7 +441,6 @@ if show_summary_results:
         info_dict['visit_groups_parameters']['color'] = ['b', 'g', '0.7', 'k']
         info_dict['siaf'] = siaf
         obs_collection.info_dict = info_dict
-#        info_dict['figure_filename_tag'] = '_'.join(program_id + info_dict['figure_filename_tag'].split('_')[1:])
 
         plt.close('all')
 #        make_plots = False
@@ -664,9 +660,6 @@ if show_summary_results:
             mean_table[mean_table_columns].write(os.path.join(plot_dir, 'alignment_averages.tex'), format='ascii.latex', formats=formats)
             1/0
 
-                    # write FGS3 file for Kimmer
-
-
         # show crossmatch statistics
         if 0:
             obs_collection.T.sort('DATAFILE')
@@ -766,21 +759,6 @@ if show_attitude_evolution:
 
     fig.tight_layout(h_pad=0.0)
 
-    # axis.set_title(title)
-    # axis.axhline(y=0, color='0.5', ls='--', zorder=-50)
-    # axis.axvline(x=0, color='0.5', ls='--', zorder=-50)
-    # axis.set_xlabel('Offset in V2 (arcsec)')
-    # axis.set_ylabel('Offset in V3 (arcsec)')
-    # axis.grid()
-    # tmp_axes_max = np.max(
-    #     np.abs(np.array([axis.get_xlim(), axis.get_ylim()]).flatten()))
-    # if tmp_axes_max > axes_max:
-    #     axes_max = tmp_axes_max
-    #
-    # axis.set_xlim((-axes_max, axes_max))
-    # axis.set_ylim((-axes_max, axes_max))
-    # fig.tight_layout(h_pad=0.0)
-    # plt.show()
     if save_plot:
 #        figure_name = os.path.join(plot_dir, 'corrected_attitude_from_cameras_{}.pdf'.format(info_dict['figure_filename_tag']))
         figure_name = os.path.join(plot_dir, 'corrected_attitude_from_cameras.pdf')
@@ -790,34 +768,57 @@ if show_attitude_evolution:
 # Last part: Write out a human-readable text file that shows the alignment results
 result = pickle.load(open(result_files[0], 'rb'))
 
-###
-### Issue: The distortion solution below should be the newer one. How would I take that as an in put?
-####
-#coeffs =
-#A = coeffs['Sci2IdlX']
-#B = coeffs['Sci2IdlY']
-#result['V3SciXAngle'] = np.arctan2(-A[1],B[1]) + results['calibrated_V3IdlYAngle']
-#result['V3SciYAngle'] = result.T['calibrated_V3IdlYAngle']
+# Quick solution for adding V3SciXAngle to the results -- NOTE: this won't work for multiple calibration apertures
+if distortion_coefficients_file is None or len(distortion_coefficients_file)==0:
+    aper = siaf[apertures_to_calibrate]
+    AA = aper.get_polynomial_coefficients()['Sci2IdlX']
+    BB = aper.get_polynomial_coefficients()['Sci2IdlY']
+else:
+    coeffs = Table.read(os.path.join(data_dir, distortion_coefficients_file), format='ascii.basic', delimiter=',')
+    AA = coeffs['Sci2IdlX']
+    BB = coeffs['Sci2IdlY']
+betax = np.arctan2(-AA[1],BB[1])
 
-result_table = result.T['aperture_name', 'calibrated_V3IdlYAngle',
-#                        'calibrated_V3SciXAngle', 'calibrated_V3SciYAngle',
-                        'calibrated_V2Ref', 'calibrated_V3Ref',
-                        'delta_calibrated_v2_position_arcsec',
-                        'delta_calibrated_v3_position_arcsec',
-                        'delta_calibrated_v3_angle_arcsec']
-#result_table.rename_column('instrument_name','camera')
-result_table.rename_column('aperture_name','AperName')
-result_table.rename_column('calibrated_V3IdlYAngle','V3IdlYangle')
-#result_table.rename_column('calibrated_V3SciXangle','V3SciXangle')
-#result_table.rename_column('calibrated_V3SciYangle','V3SciYangle')
-result_table.rename_column('delta_calibrated_v2_position_arcsec','diff_V2Ref')
-result_table.rename_column('delta_calibrated_v3_position_arcsec','diff_V3Ref')
-result_table.rename_column('delta_calibrated_v3_angle_arcsec','diff_V3IdlYAngle')
+siaf_table = Table()
+siaf_table['Apername']         = result.T['aperture_name'][1:]
+siaf_table['V3IdlYAngle']      = result.T['calibrated_V3IdlYAngle'][1:] # need to keep the ":" at the end to avoid error
+siaf_table['V3SciXAngle']      = np.degrees(betax) + siaf_table['V3IdlYAngle']
+siaf_table['V3SciYAngle']      = siaf_table['V3IdlYAngle']
+siaf_table['V2Ref']            = result.T['calibrated_V2Ref'][1:]
+siaf_table['V3Ref']            = result.T['calibrated_V3Ref'][1:]
+###siaf_table['diff_V2Ref']       = result.T['delta_calibrated_v2_position_arcsec'][1]
+###siaf_table['diff_V3Ref']       = result.T['delta_calibrated_v3_position_arcsec'][1]
+###siaf_table['diff_V3IdlYAngle'] = result.T['delta_calibrated_v3_angle_arcsec'][1]
 
-result_txt = os.path.join(result_dir,'fpa_results.csv')
-result_table.write(result_txt, format='ascii.fixed_width', comment=False, delimiter=',', bookend=False, overwrite=True)
+# For NIRISS and FGS, add another row that shows OSS parameters
+if 'NIS' or 'FGS' in apertures_to_calibrate:
+    c1 = apertures_to_calibrate[0]+'_OSS'
+    c2 = siaf_table['V3IdlYAngle']
+    c3 = siaf_table['V3SciXAngle']+180.
+    c4 = siaf_table['V3SciYAngle']-180.
+    c5 = siaf_table['V2Ref']
+    c6 = siaf_table['V3Ref']
+    siaf_table.add_row([c1, c2, c3, c4, c5, c6])
 
-print('====================================================================================================')
-print('END OF SCRIPT: ALL ANALYSES HAVE BEEN COMPLETED. RESULTS ARE AVAILABLE IN THE fpa_results.csv FILE. ')
-print('====================================================================================================')
+username = os.getlogin()
+timestamp = Time.now()
+instrument_name = result.T['instrument_name'][1]
+
+comments = []
+comments.append('{} alignment parameter reference file for SIAF'.format(instrument_name))
+comments.append('')
+comments.append('This file contains the focal plane alignment parameters calibrated during FGS-SI alignment.')
+comments.append('')
+comments.append('Generated {} {}'.format(timestamp.isot, timestamp.scale))
+comments.append('by {}'.format(username))
+comments.append('')
+siaf_table.meta['comments'] = comments
+
+result_txt = os.path.join(result_dir,'siaf_alignment.txt')
+siaf_table.write(result_txt, format='ascii.fixed_width',
+                 delimiter=',', delimiter_pad=' ', bookend=False, overwrite=True)
+
+print('======================================================================================================')
+print('END OF SCRIPT: ALL ANALYSES HAVE BEEN COMPLETED. RESULTS ARE AVAILABLE IN THE siaf_alignment.txt FILE. ')
+print('======================================================================================================')
 sys.exit(0)

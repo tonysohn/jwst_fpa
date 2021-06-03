@@ -48,7 +48,7 @@ class AlignmentObservation(object):
 
     def __init__(self, instrument):
         self.instrument = instrument
-        self.fpa_name_seed = '{}_{}'.format(self.instrument)
+        self.fpa_name_seed = '{}'.format(self.instrument)
 
     def compute_v2v3(self, aperture, V3IdlYAngle_deg=None, V2Ref_arcsec=None, V3Ref_arcsec=None, verbose=False,
                      method='planar_approximation', use_tel_boresight=True, input_coordinates='tangent_plane'):
@@ -1708,7 +1708,7 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
                 RA_APER_deg, DEC_APER_deg, PA_V3_deg)
             aperture = obs_collection.observations[reference_observation_index][0].aperture
             reference_ref_cats.append(
-                fpalign.alignment.compute_sky_to_tel_in_table(reference_reference_catalog[0::10],
+                alignment.compute_sky_to_tel_in_table(reference_reference_catalog[0::10],
                                                               alignment_reference_attitude,
                                                               aperture))
 

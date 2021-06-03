@@ -45,7 +45,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
 ### START OF CONFIGURATION PARAMETERS
 
 home_dir = os.environ['HOME']
-
+data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/TEST/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
 #data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
@@ -53,42 +53,11 @@ home_dir = os.environ['HOME']
 #data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
 #data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
 #data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
-data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/HST_TEST')
-
-#####################################################################
-#####
-##### For LRE3
-#####
-#####################################################################
-#####
-####
-###
-##
-#
-#data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS1_distortion/')
-#data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS2_distortion/')
-#data_dir = os.path.join(home_dir,'LRE3/OTE-10/NIRCam_distortion/')
-data_dir = os.path.join(home_dir,'LRE3/OTE-11/NIRISS_distortion/')
-#
-##
-###
-####
-#####
-#####################################################################
-
-
-nominalpsf = False # or True --> This will have to be False for OTE-10 and 11
-
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
-observatory = 'JWST'
 prdopssoc_version = 'PRDOPSSOC-034'
 
-<<<<<<< HEAD
-reference_catalog_type = 'hst'
-=======
 reference_catalog_type = 'hawki' # or 'hst'
->>>>>>> lre3
 
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle
@@ -111,6 +80,8 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
+nominalpsf = True # this will be False for OTE-10/11 programs
+distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 
 ### END OF CONFIGURATION PARAMETERS
 
@@ -187,6 +158,54 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
 
     return distortion_reference_file_name
 
+def write_distortion_reference_oss_file(distortion_reference_file_name):
+    """Write the OSS version of distortion reference file.
+
+    Parameters
+    ----------
+    distortion_reference_file_name
+
+    Returns
+    -------
+
+    """
+    distortion_coefficients_table = Table.read(distortion_reference_file_name,
+                                               format='ascii.basic', delimiter=',')
+
+    comments = distortion_coefficients_table.meta['comments']
+    if any('NIS_CEN' in s for s in comments):
+        new_comments = [w.replace('NIS_CEN','NIS_CEN_OSS') for w in comments]
+        distortion_coefficients_table.meta['comments'] = new_comments
+
+    A = distortion_coefficients_table['Sci2IdlX']
+    B = distortion_coefficients_table['Sci2IdlY']
+    C = distortion_coefficients_table['Idl2SciX']
+    D = distortion_coefficients_table['Idl2SciY']
+
+    # Flip parity for certain coefficients
+    A[[ 0, 3, 4, 5, 10, 11, 12, 13, 14]] *= -1
+    B[[ 1, 2, 6, 7,  8,  9            ]] *= -1
+    C[[ 2, 3, 5, 7,  9, 10, 12, 14    ]] *= -1
+    D[[ 2, 3, 5, 7,  9, 10, 12, 14    ]] *= -1
+
+    distortion_coefficients_table['Sci2IdlX'] = A
+    distortion_coefficients_table['Sci2IdlY'] = B
+    distortion_coefficients_table['Idl2SciX'] = C
+    distortion_coefficients_table['Idl2SciY'] = D
+
+    distortion_coefficients_table['temp'] = \
+        [distortion_coefficients_table['AperName'][0]+'_OSS']*len(A)
+    distortion_coefficients_table['AperName'] = distortion_coefficients_table['temp']
+    distortion_coefficients_table.remove_column('temp')
+
+    f = distortion_reference_file_name.split('.')
+    distortion_reference_oss_file_name = f[0]+'_oss.'+f[1]
+
+    distortion_coefficients_table.write(distortion_reference_oss_file_name, format='ascii.fixed_width',
+                                        delimiter=',', delimiter_pad=' ', bookend=False,
+                                        overwrite=overwrite_distortion_reference_table)
+
+    return distortion_reference_oss_file_name
 
 idl_tel_method = 'spherical' # or 'planar_approximation'
 
@@ -204,13 +223,11 @@ for dir in [standardized_data_dir, plot_dir, result_dir]:
     if os.path.isdir(dir) is False: os.makedirs(dir)
 
 if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_data_dir, '*.fits'))):
-# if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_data_dir, '*.fits'))):
 
     extraction_parameters = {'nominalpsf': nominalpsf,
                              'use_epsf': use_epsf,
                              'show_extracted_sources': show_extracted_sources,
                              'show_psfsubtracted_image': show_psfsubtracted_image}
-                             #'naming_tag': naming_tag
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : use_DAOStarFinder_for_epsf,
                              #'use_weights_for_epsf': False,
@@ -271,11 +288,11 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters = {}
     crossmatch_parameters['pickle_file'] = obs_xmatch_pickle_file
     crossmatch_parameters['overwrite'] = overwrite_obs_xmatch_pickle
+    crossmatch_parameters['data_dir'] = data_dir
     crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
     crossmatch_parameters['verbose_figures'] = verbose_figures
     crossmatch_parameters['save_plot'] = save_plot
     crossmatch_parameters['plot_dir'] = crossmatch_dir
-    crossmatch_parameters['observatory'] = observatory
     crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
     crossmatch_parameters['overwrite_pm_correction'] = False # or True
     crossmatch_parameters['verbose'] = verbose
@@ -285,6 +302,7 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['xmatch_radius'] = 0.1 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
     crossmatch_parameters['rejection_level_sigma'] = 2.5 # or 5
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
+    crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
     #        crossmatch_parameters['xmatch_radius_camera'] = 0.2 * u.arcsec
     #        crossmatch_parameters['xmatch_radius_fgs'] = None
     #        if run_on_single_niriss_file or run_on_single_fgs_file:
@@ -293,8 +311,8 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     # Call the crossmatch routine
     observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)
 
-    # generate an AlignmentObservationCollection object
-    obs_collection = alignment.AlignmentObservationCollection(observations, observatory)
+    # Generate an AlignmentObservationCollection object
+    obs_collection = alignment.AlignmentObservationCollection(observations)
     pickle.dump(obs_collection, open(obs_collection_pickle_file, "wb"))
 else:
     obs_collection = pickle.load(open(obs_collection_pickle_file, "rb"))
@@ -512,6 +530,8 @@ for obs in obs_collection.observations:
         'out_dir': plot_dir, 'aperture_name': aperture_name, 'instrument_name': instrument_name, 'name_seed': name_seed}
 
         distortion_reference_file_name = write_distortion_reference_file(coefficients_dict)
+        if 'NIRISS' or 'FGS' in instrument_name:
+            distortion_reference_oss_file_name = write_distortion_reference_oss_file(distortion_reference_file_name)
         new_aperture = pysiaf.Aperture()
         new_aperture.set_distortion_coefficients_from_file(distortion_reference_file_name)
         linear_parameters = new_aperture.get_polynomial_linear_parameters()

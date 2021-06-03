@@ -1,12 +1,10 @@
 import os
 import numpy as np
 
-observatory = 'JWST'
-
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'LRE3/OTE-11/FGS1-NIRISS_alignment')
+data_dir = os.path.join(home_dir, 'OTE-11/FGS1-NIRISS_alignment')
 
 reference_catalog_type = 'hawki'
 nominalpsf = True

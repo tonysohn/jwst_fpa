@@ -199,7 +199,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     #fwhm_lo, fwhm_hi = 1.0, 1.4
                     sharp_lo, sharp_hi = 0.6, 1.4
                 elif 'nrca' or 'nrcb' in f:
-                    sharp_lo, sharp_hi = 0.6, 1.4  ### PLACEHOLDER!!! CHANGE AFTER INSPECTION
+                    sharp_lo, sharp_hi = 0.6, 1.4
             else:
                 # If using Commissioning (coarsely-phased) PSF models
                 if 'nis' in f:
@@ -214,7 +214,6 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             # NOTE: minsep_fwhm > 5 is required for rejecting false sources around saturated stars
             iraffind = IRAFStarFinder(threshold=50*bgrms+bgavg, fwhm=2.0, minsep_fwhm=7,
                                       roundlo=round_lo, roundhi=round_hi, sharplo=sharp_lo, sharphi=sharp_hi)
-            #### but for NIRCam CommissingPSF images, 0.7<sharp<1.4 works!
             iraf_extracted_sources = iraffind(data_cps)
 
             # Remove sources based on flux percentile (too faint or saturated sources)
@@ -407,6 +406,7 @@ def crossmatch_fpa_data(parameters):
         else:
             save_plot = 0
         #save_plot = parameters['save_plot']
+        data_dir = parameters['data_dir']
         plot_dir = parameters['plot_dir']
         siaf = parameters['siaf']
         verbose = parameters['verbose']
@@ -415,9 +415,12 @@ def crossmatch_fpa_data(parameters):
         xmatch_radius = parameters['xmatch_radius']
         rejection_level_sigma = parameters['rejection_level_sigma']
         restrict_analysis_to_these_apertures = parameters['restrict_analysis_to_these_apertures']
+        distortion_coefficients_file = parameters['distortion_coefficients_file']
 
+        # Set up return parameter
         observations = []
-        # Work on ALL FPA_data.....fits files together - should I make them seprate and have these called multiple times from main script?
+
+        # Work on ALL FPA_data.....fits files together - should I make them separate and have these called multiple times from main script?
         for j, f in enumerate(fpa_data_files):
 
             print('=' * 40)
@@ -441,11 +444,26 @@ def crossmatch_fpa_data(parameters):
             print('Detector: %s' % (aperture.InstrName))
             print('Aperture: %s' % (aperture.AperName))
 
+            #****
+            #**** Below will NOT work for FGS-SI alignment since we'll need distortion_coefficients_file
+            #**** for BOTH FGS and SI detectors.
+            #**** TBD: Come up with a way to deal with this situation.
+            #****
+
+            # Either use the SIAF default distortion parameters, or the supplied one.
+            #
+            #if distortion_coefficients_file is None or len(distortion_coefficients_file)==0:
+            #    use_siaf_distortions = True
+            #else:
+            #    # Below is the *key* part for updating the distortion coefficients!
+            #    aperture.set_distortion_coefficients_from_file(os.path.join(data_dir, distortion_coefficients_file))
+            #    use_siaf_distortions = False
+
             # Generate alignment observation
-            obs = AlignmentObservation(aperture.observatory, aperture.InstrName)
+            obs = AlignmentObservation(aperture.InstrName)
             obs.aperture = aperture
 
-            # Compute (v2, v3) coordinates of referece catalog (Hawk-I for JWST LMC field) stars using reference aperture (using boresight)
+            # Compute (v2, v3) coordinates of referece catalog stars using reference aperture (using boresight)
             attitude_ref = pysiaf.utils.rotations.attitude(0., 0.,
                                                            fpa_data.meta['pointing_ra_v1'],
                                                            fpa_data.meta['pointing_dec_v1'],
@@ -486,13 +504,14 @@ def crossmatch_fpa_data(parameters):
             star_catalog['star_id'] = star_catalog['id']
             obs.star_catalog = star_catalog
 
-            # SCI science frame (in pixels) -> IDL(=distortion-corrected) frame (in arcsec)
+            # Convert from sci frame (in pixels) to idl frame (in arcsec)
             obs.star_catalog['x_idl_arcsec'], obs.star_catalog['y_idl_arcsec'] = \
                 aperture.sci_to_idl(np.array(obs.star_catalog['x_SCI']), np.array(obs.star_catalog['y_SCI']))
+
             # compute V2/V3: # IDL frame in degrees ->  V2/V3_tangent_plane in arcsec
             obs.star_catalog = compute_idl_to_tel_in_table(obs.star_catalog, aperture, method=idl_tel_method)
 
-            # TBD: Try astroalign? --> my first attempt didn't work
+            # TBD: Try astroalign? --> my initial attempt didn't work (5/31/2021) For now, stick to TPalign
 
             ######################################################################################
             #
@@ -703,144 +722,3 @@ def crossmatch_fpa_data(parameters):
         print('Loaded pickled file {}'.format(parameters['pickle_file']))
 
     return observations
-
-
-
-def correct_dva(obs_collection, parameters):
-    """Correct for effects of differential velocity aberration. This routine provides the necessary input to the DVA
-    calculations (as attributes to the aperture object). DVA corrections are performed within the aperture methods when
-    necessary.
-
-    Parameters
-    ----------
-    obs_collection
-
-    Returns
-    -------
-
-    """
-    print('\nCORRECT FOR DIFFERENTIAL VELOCITY ABERRATION')
-
-    dva_dir = parameters['dva_dir']
-    dva_source_dir = parameters['dva_source_dir']
-    verbose = parameters['verbose']
-
-    for group_id in np.unique(obs_collection.T['group_id']):
-        obs_indexes = np.where((obs_collection.T['group_id'] == group_id))[0]
-        # obs_collection.T[obs_indexes].pprint()
-
-        superfgs_observation_index = \
-            np.where((obs_collection.T['group_id'] == group_id) & (
-            obs_collection.T['INSTRUME'] == 'SUPERFGS'))[0]
-        superfgs_obs = obs_collection.observations[superfgs_observation_index][0]
-
-        camera_observation_index = \
-            np.where((obs_collection.T['group_id'] == group_id) & (
-            obs_collection.T['INSTRUME'] != 'SUPERFGS'))[0]
-
-        fgs_exposure_midtimes = np.mean(np.vstack(
-            (superfgs_obs.fpa_data['EXPSTART'].data, superfgs_obs.fpa_data['EXPEND'].data)), axis=0)
-
-        # exclude HST FGS because it has already been corrected
-        for i in camera_observation_index:
-
-            camera_obs = obs_collection.observations[i]
-            camera_obs_name_seed = '{}_{}_{}_{}_{}'.format(camera_obs.fpa_data.meta['TELESCOP'],
-                                                           camera_obs.fpa_data.meta['INSTRUME'],
-                                                           camera_obs.fpa_data.meta['APERTURE'],
-                                                           camera_obs.fpa_data.meta['EPOCH'],
-                                                           camera_obs.fpa_data.meta['DATAFILE'].split('.')[0]).replace(':', '-')
-            dva_filename = os.path.join(dva_dir, 'DVA_data_{}.txt'.format(camera_obs_name_seed))
-            dva_file = open(dva_filename, 'w')
-            # dva_file = sys.stdout
-
-            camera_exposure_midtime = np.mean(
-                [camera_obs.fpa_data.meta['EXPSTART'], camera_obs.fpa_data.meta['EXPEND']])
-            matching_fgs_exposure_index = np.argmin(
-                np.abs(camera_exposure_midtime - fgs_exposure_midtimes))
-            if verbose:
-                print('Camera-FGS Match found with delta_time = {:2.3f} min'.format(np.abs(
-                    camera_exposure_midtime - fgs_exposure_midtimes[
-                        matching_fgs_exposure_index]) * 24 * 60.))
-                print('Writing parameter file for DVA code')
-            for key in 'PRIMESI V2Ref V3Ref FGSOFFV2 FGSOFFV3 RA_V1 DEC_V1 PA_V3 POSTNSTX POSTNSTY POSTNSTZ VELOCSTX VELOCSTY VELOCSTZ EXPSTART'.split():
-                if key in 'V2Ref V3Ref'.split():
-                    value = getattr(superfgs_obs.aperture, key)
-                elif key == 'PRIMESI':
-                    value = np.int(superfgs_obs.fpa_data[key][matching_fgs_exposure_index][-1])
-                elif key in 'FGSOFFV2 FGSOFFV3'.split():
-                    value = superfgs_obs.fpa_data[key][matching_fgs_exposure_index]
-                elif key == 'EXPSTART':
-                    # Scale of EXPSTART seems to be UTC, see http://www.stsci.edu/ftp/documents/calibration/podps.dict
-                    fgs_time = Time(camera_obs.fpa_data.meta[key], format='mjd', scale='utc')
-                    value = fgs_time.yday.replace(':', ' ')
-                else:
-                    value = camera_obs.fpa_data.meta[key]
-
-                print('{:<30} {}'.format(value, key), file=dva_file)
-            dva_file.close()
-            camera_obs.aperture._correct_dva = True
-            camera_obs.aperture._dva_parameters = {'parameter_file': dva_filename,
-                                                   'dva_source_dir': dva_source_dir}
-
-            obs_collection.observations[i] = camera_obs
-            inspect_ref_vs_obs_positions = True
-
-            if inspect_ref_vs_obs_positions:
-                v2, v3 = camera_obs.aperture.correct_for_dva(
-                    np.array(camera_obs.star_catalog_matched['v2_spherical_arcsec']),
-                    np.array(camera_obs.star_catalog_matched['v3_spherical_arcsec']))
-
-                v2v3_data_file = os.path.join(dva_dir, 'v2v3_data_{}_measured.txt'.format(
-                    camera_obs_name_seed))
-                camera_obs.star_catalog_matched['v2_spherical_arcsec', 'v3_spherical_arcsec'].write(
-                    v2v3_data_file,
-                    format='ascii.fixed_width_no_header',
-                    delimiter=' ',
-                    bookend=False,
-                    overwrite=True)
-
-                v2v3_corrected_file = v2v3_data_file.replace('_measured', '_corrected')
-                system_command = '{} {} {} {}'.format(os.path.join(dva_source_dir, 'compute-DVA.e'),
-                                                      dva_filename,
-                                                      v2v3_data_file, v2v3_corrected_file)
-                print('Running system command \n{}'.format(system_command))
-                subprocess.call(system_command, shell=True)
-
-                v2v3_corrected = Table.read(v2v3_corrected_file, format='ascii.no_header',
-                                            names=('v2_original', 'v3_original', 'v2_corrected',
-                                                   'v3_corrected'))
-                1 / 0
-
-                # interpolate ephmeris
-                # fgs_time = Time(superfgs_obs.fpa_data[key][matching_fgs_exposure_index], format='mjd', scale='tdb')
-                # start_time = Time(superfgs_obs.fpa_data[key][matching_fgs_exposure_index]-2001, format='mjd')
-                # stop_time  = Time(superfgs_obs.fpa_data[key][matching_fgs_exposure_index]-1999, format='mjd')
-                start_time = fgs_time - TimeDelta(1, format='jd')
-                stop_time = fgs_time + TimeDelta(1, format='jd')
-
-                # center = 'g@399'# Earth
-                # center = '500@399'
-                # target = '0' # SSB
-                center = '500@0'  # SSB
-                target = '399'  # Earth
-                # target = '500@399'
-                e = pystrometry.get_ephemeris(center=center, target=target, start_time=start_time,
-                                              stop_time=stop_time,
-                                              step_size='1h', verbose=True, out_dir=dva_dir,
-                                              vector_table_output_type=2,
-                                              output_units='KM-S', overwrite=True,
-                                              reference_plane='FRAME')
-
-                ip_values = []
-                for colname in ['X', 'Y', 'Z', 'VX', 'VY', 'VZ']:
-                    ip_fun = scipy.interpolate.interp1d(np.array(e['JDTDB']), np.array(e[colname]),
-                                                        kind='linear', copy=True, bounds_error=True,
-                                                        fill_value=np.nan)
-                    # http://docs.astropy.org/en/stable/time/#id6
-                    ip_val = ip_fun(fgs_time.tdb.jd)
-                    ip_values.append(ip_val)
-
-                e.add_row(np.hstack(([fgs_time.tdb.jd, 'N/A'], np.array(ip_values))))
-                e[[-1]].pprint()
-    return obs_collection
