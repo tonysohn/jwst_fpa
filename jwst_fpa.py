@@ -770,7 +770,7 @@ result = pickle.load(open(result_files[0], 'rb'))
 
 # Quick solution for adding V3SciXAngle to the results -- NOTE: this won't work for multiple calibration apertures
 if distortion_coefficients_file is None or len(distortion_coefficients_file)==0:
-    aper = siaf[apertures_to_calibrate]
+    aper = siaf[apertures_to_calibrate[0]]
     AA = aper.get_polynomial_coefficients()['Sci2IdlX']
     BB = aper.get_polynomial_coefficients()['Sci2IdlY']
 else:
