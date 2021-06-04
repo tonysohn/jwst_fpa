@@ -218,6 +218,9 @@ class AlignmentObservationCollection(object):
                 tmp_group_id += 1
 
     def generate_attitude_groups(self, threshold_hours=0.3):
+    ##################
+    #### NOT USED ####
+    ##################
         """Create attitude groups of near-contemporaneous camera images to constrain attitude.
 
         Returns
