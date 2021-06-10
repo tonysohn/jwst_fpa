@@ -780,7 +780,7 @@ else:
 betax = np.arctan2(-AA[1],BB[1])
 
 siaf_table = Table()
-siaf_table['Apername']         = result.T['aperture_name'][1:]
+siaf_table['AperName']         = result.T['aperture_name'][1:]
 siaf_table['V3IdlYAngle']      = result.T['calibrated_V3IdlYAngle'][1:] # need to keep the ":" at the end to avoid error
 siaf_table['V3SciXAngle']      = np.degrees(betax) + siaf_table['V3IdlYAngle']
 siaf_table['V3SciYAngle']      = siaf_table['V3IdlYAngle']
