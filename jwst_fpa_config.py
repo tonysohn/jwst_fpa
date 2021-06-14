@@ -22,8 +22,7 @@ data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/D1')
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
-distortion_coefficients_file = None
-#distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
+distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 
 ##################################################################
 alignment_reference_apertures                  = ['FGS1_FULL']
@@ -33,6 +32,7 @@ calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
 apply_fpa_calibration_array                    = [False]
 apertures_to_calibrate                         = ['NIS_CEN']
 ##################################################################
+
 
 save_plot = True
 verbose = True
