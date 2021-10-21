@@ -185,6 +185,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             bgavg = mmm_bkg(data_cps)
 
             # Default criterions
+            sigfactor = 50
             round_lo, round_hi = 0.0, 0.6
             sharp_lo, sharp_hi = 0.3, 1.4
             fwhm_lo, fwhm_hi   = 1.0, 2.5
@@ -200,6 +201,10 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     sharp_lo, sharp_hi = 0.6, 1.4
                 elif 'nrca' or 'nrcb' in f:
                     sharp_lo, sharp_hi = 0.6, 1.4
+                elif 'miri' in f:
+                    sharl_lo, sharp_hi = 0.8, 1.0
+                    fwhm_lo, fwhm_hi   = 1.5, 2.2
+                    sigfactor          = 3
             else:
                 # If using Commissioning (coarsely-phased) PSF models
                 if 'nis' in f:
@@ -209,11 +214,18 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     sharp_lo, sharp_hi = 0.8, 1.4
                 elif 'nrca' or 'nrcb' in f:
                     sharp_lo, sharp_hi = 0.8, 1.4
+                elif 'miri' in f:
+                    sharl_lo, sharp_hi = 0.8, 1.0
+                    fwhm_lo, fwhm_hi   = 1.5, 2.2
+                    sigfactor          = 3
+
 
             # Use IRAFStarFinder for detecting stars
             # NOTE: minsep_fwhm > 5 is required for rejecting false sources around saturated stars
-            iraffind = IRAFStarFinder(threshold=50*bgrms+bgavg, fwhm=2.0, minsep_fwhm=7,
-                                      roundlo=round_lo, roundhi=round_hi, sharplo=sharp_lo, sharphi=sharp_hi)
+            iraffind = IRAFStarFinder(threshold=sigfactor*bgrms+bgavg, fwhm=2.0,
+                                      minsep_fwhm=7,
+                                      roundlo=round_lo, roundhi=round_hi,
+                                      sharplo=sharp_lo, sharphi=sharp_hi)
             iraf_extracted_sources = iraffind(data_cps)
 
             # Remove sources based on flux percentile (too faint or saturated sources)
@@ -468,6 +480,10 @@ def crossmatch_fpa_data(parameters):
                                                            fpa_data.meta['pointing_ra_v1'],
                                                            fpa_data.meta['pointing_dec_v1'],
                                                            fpa_data.meta['pointing_pa_v3'])
+            ###!!!
+            ###!!! If dva correction is required, below would be the place to apply it.
+            ###!!! Simplest way to do this is to apply dva correction to RA, DEC
+            ###!!!
             reference_catalog['v2_spherical_arcsec'], reference_catalog['v3_spherical_arcsec'] = \
                 pysiaf.utils.rotations.getv2v3(attitude_ref, np.array(reference_catalog['ra']), np.array(reference_catalog['dec']))
 
