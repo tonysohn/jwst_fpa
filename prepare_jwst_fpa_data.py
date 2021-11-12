@@ -485,7 +485,9 @@ def crossmatch_fpa_data(parameters):
             ###!!! Simplest way to do this is to apply dva correction to RA, DEC
             ###!!!
             reference_catalog['v2_spherical_arcsec'], reference_catalog['v3_spherical_arcsec'] = \
-                pysiaf.utils.rotations.getv2v3(attitude_ref, np.array(reference_catalog['ra']), np.array(reference_catalog['dec']))
+                pysiaf.utils.rotations.getv2v3(attitude_ref,
+                                               np.array(reference_catalog['ra']),
+                                               np.array(reference_catalog['dec']))
 
             ### Why convert to RA, Dec space??? Should just use the tangent-projected space
             reference_cat = SkyCoord(ra =np.array(reference_catalog['v2_spherical_arcsec']) * u.arcsec,

@@ -33,9 +33,9 @@ deg2arcsec = u.deg.to(u.arcsec)
 alignment_definition_attributes = {'default': ['V3IdlYAngle', 'V2Ref', 'V3Ref']}
 
 alignment_parameter_mapping = OrderedDict(
-                              {'default': {'v3_angle': 'V3IdlYAngle', 'v2_position': 'V2Ref', 'v3_position': 'V3Ref'},
-                               'unit': {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
-                               'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'}})
+                  {'default':         {'v3_angle': 'V3IdlYAngle', 'v2_position': 'V2Ref', 'v3_position': 'V3Ref'},
+                   'unit':            {'v3_angle': u.deg, 'v2_position': u.arcsec, 'v3_position': u.arcsec},
+                   'default_inverse': {'V3IdlYAngle': 'v3_angle', 'V2Ref':'v2_position', 'V3Ref':'v3_position'}})
 
 class AlignmentObservation(object):
     """Class for focal plane alignment obervations for JWST
@@ -983,34 +983,6 @@ def determine_attitude(obs_set, parameters):
             #1/0
             #### So far current_shift_in_Y looks good
 
-            if (len(star_catalog) > 200) & (converged) & (0):
-                # difference between applying distortion and not
-                data = {}
-                star_catalog = vstack([compute_idl_to_tel_in_table(obs.star_catalog_matched, obs.aperture,
-                                                                   distortion_correction=obs.distortion_dict,
-                                                                   use_tel_boresight=parameters['use_tel_boresight'],
-                                                                   method=parameters['idl_tel_method']) for obs in
-                                                                   obs_set.observations[obs_indices]], metadata_conflicts='silent')
-                data['reference'] = {'x': np.array(star_catalog['v2_tangent_arcsec']),
-                                     'y': np.array(star_catalog['v3_tangent_arcsec'])}
-
-                star_catalog = vstack([compute_idl_to_tel_in_table(obs.star_catalog_matched, obs.aperture,
-                                                                   distortion_correction=obs.distortion_dict,
-                                                                   use_tel_boresight=parameters['use_tel_boresight'],
-                                                                   # method=parameters[
-                                                                   # 'idl_tel_method'],
-                                                                   method='spherical_transformation', ) for obs in
-                                                                   obs_set.observations[obs_indices]], metadata_conflicts='silent')
-
-                data['comparison_0'] = {'x': np.array(star_catalog['v2_tangent_arcsec']),
-                                        'y': np.array(star_catalog['v3_tangent_arcsec'])}
-
-                plot_aperture_names = ['FGS1', 'FGS2', 'FGS3', 'JWFCFIX', 'JWFC1FIX', 'JWFC2FIX', 'IUVISCTR',
-                                       'IUVIS1FIX', 'IUVIS2FIX']
-                plot_spatial_difference(data, siaf=parameters['siaf'], plot_aperture_names=plot_aperture_names)
-
-                1 / 0
-
             if converged:
                 print('Attitude correction: Iterations converged after {} steps'.format(iteration_number))
                 break
@@ -1065,19 +1037,6 @@ def determine_attitude(obs_set, parameters):
 ######## TOHUGHTS SO FAR: So far, attitdue has been updated using distortion model, and this changes is negligible.
 ######## This means, the hige V3 offset is happening somewhere beyond this determine_attitude routine, OR!
 ######## This routine could still be a problem for the other apertures' iterations
-    if 0:
-##  if parameters['show_final_fit']:
-        # plot final residuals
-
-        involved_apertures = [obs.aperture for obs in obs_set.observations[obs_indices]]
-        res_titles = ['rms={:2.4f}'.format(r) for r in lazAC.rms[parameters['evaluation_frame_number']]]
-        #####
-        ##### Below results in error...
-        #####
-        lazAC.plotResiduals(parameters['evaluation_frame_number'], parameters['plot_dir'], parameters['name_seed'],
-                            title=res_titles, plot_apertures=involved_apertures)
-        #####
-        lazAC.display_results(print_rms_only=True)
 
     attitude_dict = {}
     attitude_dict['attitude'] = attitude
@@ -1114,6 +1073,7 @@ def determine_attitude(obs_set, parameters):
         data['comparison_0'] = {'x': np.array(star_catalog['v2_tangent_arcsec']),
                                 'y': np.array(star_catalog['v3_tangent_arcsec'])}
         plot_spatial_difference(data, siaf=parameters['siaf'], plot_aperture_names=plot_aperture_names)
+
 
     return attitude_dict
 
@@ -1269,6 +1229,7 @@ def determine_focal_plane_alignment(obs_collection, parameters):
             discarded_observations = np.setdiff1d(np.arange(len(obs_collection.T)), selected_observations)
             # remove observations that are not used in case FGS is alignment reference
             obs_collection.delete_observations(discarded_observations)
+
 ############
 ############ NOTENOTE: If I get an error above, that means I spelled the aperture name wrong: e.g., NRCA3 instead of NRCA3_FULL
 ############
@@ -1338,9 +1299,7 @@ def determine_focal_plane_alignment(obs_collection, parameters):
 
                         ### ATTITUDE DETERMINATION STEP ###
                         corrected_attitude = determine_attitude(obs_set, attitude_determination_parameters)
-
-                        #1/0
-
+                        
                         if 1:
                             for j in range(obs_set.n_observations):
                                 original_aperture = obs_set.observations[j].aperture

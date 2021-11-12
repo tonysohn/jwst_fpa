@@ -4,15 +4,16 @@ Authors
 -------
 
     Tony Sohn
-    Original script by Johannes Sahlmann
+    (based on original script by Johannes Sahlmann)
 
 Use
 ---
-    From ipython session:
-    > run jwst_distortion
+    From terminal (preferred):
+        $ python jwst_distortion.py
+    or from ipython session:
+        In [1]: run jwst_distortion
 
 """
-from __future__ import print_function
 import os
 import sys
 import copy
@@ -36,32 +37,28 @@ import pysiaf
 from pysiaf.utils import tools
 from pysiaf.constants import _DATA_ROOT
 
-#####################################
 plt.close('all')
-#####################################
-distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5}
-#####################################
 
+# Pre-defined distortion polynomial degrees for each instrument
+distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
+
+
+#####################################
 ### START OF CONFIGURATION PARAMETERS
 
 home_dir = os.environ['HOME']
-data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/TEST/')
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/')
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS1_distortion/')
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/FGS2_distortion/')
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/Confirmation/')
-#data_dir = os.path.join(home_dir,'TEL/OTE-11/NIRISS_distortion/')
-#data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion/')
-#data_dir = os.path.join(home_dir,'NIRISS/NIS-011/NIRISS_distortion/')
+
+data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/F150W')
+
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
-prdopssoc_version = 'PRDOPSSOC-034'
+prdopssoc_version = 'PRDOPSSOC-039'
 
-reference_catalog_type = 'hawki' # or 'hst'
+reference_catalog_type = 'hst' # 'hst' for distortion calibrations
 
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle
-use_epsf = False # or False
+use_epsf = False # This doesn't work as intended for now, so keep it turned off until method is established
 overwrite_source_extraction = True # or False
 generate_standardized_fpa_data = True # or False
 overwrite_distortion_reference_table = True
@@ -80,8 +77,8 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-nominalpsf = True # this will be False for OTE-10/11 programs
-distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
+nominalpsf = True # False for OTE programs, True for NIS-011b
+distortion_coefficients_file = None # 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 
 ### END OF CONFIGURATION PARAMETERS
 
@@ -159,7 +156,7 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
     return distortion_reference_file_name
 
 def write_distortion_reference_oss_file(distortion_reference_file_name):
-    """Write the OSS version of distortion reference file.
+    """Write the OSS version of distortion reference file for NIRISS and FGS.
 
     Parameters
     ----------
@@ -247,12 +244,12 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
 # 1/0
 plt.close('all')
 
-# Load all siaf apertures
+# Load all relevant siaf apertures
 apertures_dict = {}
-apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS']
+apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI']
 apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
                              'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
-                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN']
+                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL']
 siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
 #siaf_detector_layout = pysiaf.read.read_siaf_detector_layout()
@@ -269,7 +266,7 @@ if reference_catalog_type.lower() == 'hawki':
     reference_catalog.rename_column('dec_deg', 'dec')
     reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
 elif reference_catalog_type.lower() == 'hst':
-    reference_catalog = hst.hst_catalog()
+    reference_catalog = hst.hst_catalog(decimal_year_of_observation=2022.0)
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
     reference_catalog['j_magnitude'] = reference_catalog['j_mag_vega']
@@ -380,6 +377,9 @@ for obs in obs_collection.observations:
                                             evaluation_frame_number=evaluation_frame_number,
                                             reference_point=reference_point,
                                             verbose=True)
+
+    # pysiaf.utils.polynomial.polyfit(A, xin, yin, order=)
+
 
     reference_point_inverse = np.array([[0., 0.], [obs.aperture.XSciRef, obs.aperture.YSciRef]])
     lazAC_inverse, index_masked_stars_inverse = distortion.fit_distortion_general(mp_inverse, k,
@@ -553,15 +553,11 @@ for obs in obs_collection.observations:
                                         basepath=os.path.join(_DATA_ROOT, 'JWST',
                                                               prdopssoc_version,
                                                               'SIAFXML', 'SIAFXML'))
-            #                nis_siaf_H_015 = pysiaf.siaf.Siaf('niriss',
-            #                                                  basepath=os.path.join(_DATA_ROOT, 'JWST',
-            #                                                                        'PRDOPSSOC-H-015',
-            #                                                                        'SIAFXML', 'SIAFXML'))
-
             # SIAF transformation
             x_idl_siaf, y_idl_siaf = ref_siaf[aperture_name].sci_to_idl(
                     obs.star_catalog_matched['x_SCI'].data,
                     obs.star_catalog_matched['y_SCI'].data)
+
             # transformation using newly determined coefficients
             x_idl_check, y_idl_check = new_aperture.sci_to_idl(
                     obs.star_catalog_matched['x_SCI'].data,

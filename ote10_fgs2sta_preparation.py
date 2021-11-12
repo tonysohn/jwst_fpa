@@ -44,8 +44,7 @@ working_dir = os.path.join(data_dir, 'fgs_to_j')
 nominalpsf = False # or True
 
 observatory = 'JWST'
-prdopssoc_version = 'PRDOPSSOC-034'
-#prdopssoc_version = 'PRDOPSSOC-H-015'
+prdopssoc_version = 'PRDOPSSOC-039'
 
 use_hawki_catalog = True
 
