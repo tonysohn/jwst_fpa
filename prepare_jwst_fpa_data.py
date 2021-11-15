@@ -10,6 +10,7 @@ import subprocess
 import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 import astropy.units as u
+import astropy.constants as const
 
 from collections import OrderedDict
 from astropy.table import Table, vstack
@@ -740,3 +741,27 @@ def crossmatch_fpa_data(parameters):
         print('Loaded pickled file {}'.format(parameters['pickle_file']))
 
     return observations
+
+def dva_correct_radec(ra, dec, vx, vy, vz):
+
+    beta_vector = np.array([vx, vy, vz])/const.c.to('km/s').value
+    beta2 = np.dot(beta_vector, beta_vector)
+    igamma = np.sqrt(1.0 - beta2)
+    star_vector = pysiaf.utils.rotations.unit(ra, dec)
+    dot_product = np.dot(beta_vector, star_vector)
+    scale = igamma/(1.0+dot_product)
+    mean_scale = scale.mean()
+    star_vector_corrected =  (igamma*star_vector + (1.0 + (1.0 - igamma)*dot_product/beta2)*beta_vector)/ \
+                             (1.0 + dot_product)
+    ra_corrected  = np.degrees(np.arctan2(star_vector_corrected[1], star_vector_corrected[0]))
+    dec_corrected = np.degrees(np.arcsin(star_vector_corrected[2]))
+
+    return ra_corrected, dec_corrected #, mean_scale
+
+def dva_correct_v2v3(v2, v3, vx, vy, vz, attitude_matrix):
+
+    ra, dec = pysiaf.utils.rotations.pointing(attitude_matrix, v2, v3)
+    ra_corrected, dec_corrected = dva_correct_radec(ra, dec, vx, vy, vz)
+    v2_corrected, v3_corrected = pysiaf.utils.rotations.getv2v3(attitude_matrix, ra_corrected, dec_corrected)
+
+    return v2_corrected, v3_corrected
