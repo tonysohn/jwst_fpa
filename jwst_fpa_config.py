@@ -7,7 +7,7 @@ import numpy as np
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/')
+data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/')
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
