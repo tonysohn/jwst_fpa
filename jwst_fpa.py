@@ -29,17 +29,18 @@ import sys
 import copy
 import glob
 import pickle
-import pysiaf
 import numpy as np
 import matplotlib.pyplot as plt
-import astropy.units as u
 
+import astropy.units as u
 from astropy.time import Time
 from astropy.table import Table, vstack
 
+import pysiaf
+from jwcf import hawki, hst
+
 import prepare_jwst_fpa_data
 import alignment
-from jwcf import hawki, hst
 
 # Loding in configurations from config file
 import jwst_fpa_config
@@ -329,38 +330,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
     ############## Main call for running the FPA routine
     obs_collection = alignment.determine_focal_plane_alignment(obs_collection, fpa_parameters)
     ##############
-
-    if 0:
-        delta_x = obs_collection.reference_catalog['v2_tangent_arcsec'] - obs_collection.reference_catalog['v2_spherical_arcsec']
-        delta_y = obs_collection.reference_catalog['v3_tangent_arcsec'] - obs_collection.reference_catalog['v3_spherical_arcsec']
-
-
-        plt.figure(figsize=(8, 8), facecolor='w', edgecolor='k')
-        plt.clf()
-        plt.quiver(obs.reference_catalog['v2_tangent_arcsec'], obs.reference_catalog['v3_tangent_arcsec'], delta_x, delta_y, angles='xy')
-        plt.title('Difference tangent-spherical')
-        plt.axis('equal')
-        plt.show()
-
-        plt.figure(figsize=(8, 8), facecolor='w', edgecolor='k')
-        plt.hist(np.abs(delta_x)*u.arcsec.to(u.milliarcsecond), 50, histtype='stepfilled', color='b', alpha=0.5, label='delta_x')
-        plt.hist(np.abs(delta_y)*u.arcsec.to(u.milliarcsecond), 50, histtype='stepfilled', color='r', alpha=0.5, label='delta_y')
-        plt.xlabel('Difference (mas)')
-        plt.legend(loc='best')
-        plt.show()
-
-        plt.figure()
-        plt.plot(delta_x, delta_y, 'ro')
-        plt.xlabel('delta_x')
-        plt.ylabel('delta_y')
-        plt.axis('equal')
-        plt.show()
-
-# for i, index in enumerate(np.arange(len(obs_collection.observations))):
-#     print('{} {} {}'.format(i, index, obs_collection.observations[i].corrected_attitude['apertures']))
-
-# plot residuals of attitude final fit
-#############################################
 
 if show_summary_results:
     print('='*100)

@@ -30,6 +30,7 @@ from photutils.background import MMMBackground, MADStdBackgroundRMS
 from photutils.centroids import centroid_2dg, centroid_com
 
 import pysiaf
+import pysiaf.utils.rotations as rotations
 from pystortion import crossmatch
 from scipy.spatial import cKDTree
 
@@ -477,18 +478,19 @@ def crossmatch_fpa_data(parameters):
             obs.aperture = aperture
 
             # Compute (v2, v3) coordinates of referece catalog stars using reference aperture (using boresight)
-            attitude_ref = pysiaf.utils.rotations.attitude(0., 0.,
-                                                           fpa_data.meta['pointing_ra_v1'],
-                                                           fpa_data.meta['pointing_dec_v1'],
-                                                           fpa_data.meta['pointing_pa_v3'])
+            attitude_ref = rotations.attitude(0., 0.,
+                                             fpa_data.meta['pointing_ra_v1'],
+                                             fpa_data.meta['pointing_dec_v1'],
+                                             fpa_data.meta['pointing_pa_v3'])
             ###!!!
             ###!!! If dva correction is required, below would be the place to apply it.
             ###!!! Simplest way to do this is to apply dva correction to RA, DEC
             ###!!!
-            reference_catalog['v2_spherical_arcsec'], reference_catalog['v3_spherical_arcsec'] = \
-                pysiaf.utils.rotations.getv2v3(attitude_ref,
-                                               np.array(reference_catalog['ra']),
-                                               np.array(reference_catalog['dec']))
+            reference_catalog['v2_spherical_arcsec'], \
+            reference_catalog['v3_spherical_arcsec'] = \
+                            rotations.getv2v3(attitude_ref,
+                                              np.array(reference_catalog['ra']),
+                                              np.array(reference_catalog['dec']))
 
             ### Why convert to RA, Dec space??? Should just use the tangent-projected space
             reference_cat = SkyCoord(ra =np.array(reference_catalog['v2_spherical_arcsec']) * u.arcsec,
@@ -531,6 +533,7 @@ def crossmatch_fpa_data(parameters):
             obs.star_catalog = compute_idl_to_tel_in_table(obs.star_catalog, aperture, method=idl_tel_method)
 
             # TBD: Try astroalign? --> my initial attempt didn't work (5/31/2021) For now, stick to TPalign
+            #
 
             ######################################################################################
             #
@@ -747,21 +750,25 @@ def dva_correct_radec(ra, dec, vx, vy, vz):
     beta_vector = np.array([vx, vy, vz])/const.c.to('km/s').value
     beta2 = np.dot(beta_vector, beta_vector)
     igamma = np.sqrt(1.0 - beta2)
-    star_vector = pysiaf.utils.rotations.unit(ra, dec)
+    star_vector = rotations.unit(ra, dec)
     dot_product = np.dot(beta_vector, star_vector)
     scale = igamma/(1.0+dot_product)
     mean_scale = scale.mean()
-    star_vector_corrected =  (igamma*star_vector + (1.0 + (1.0 - igamma)*dot_product/beta2)*beta_vector)/ \
+    star_vector_corrected =  (igamma*star_vector + \
+                              (1.0 + (1.0 - igamma)*dot_product/beta2)*beta_vector)/ \
                              (1.0 + dot_product)
-    ra_corrected  = np.degrees(np.arctan2(star_vector_corrected[1], star_vector_corrected[0]))
+    ra_corrected  = np.degrees(np.arctan2(star_vector_corrected[1],
+                                          star_vector_corrected[0]))
     dec_corrected = np.degrees(np.arcsin(star_vector_corrected[2]))
 
     return ra_corrected, dec_corrected #, mean_scale
 
 def dva_correct_v2v3(v2, v3, vx, vy, vz, attitude_matrix):
 
-    ra, dec = pysiaf.utils.rotations.pointing(attitude_matrix, v2, v3)
+    ra, dec = rotations.pointing(attitude_matrix, v2, v3)
     ra_corrected, dec_corrected = dva_correct_radec(ra, dec, vx, vy, vz)
-    v2_corrected, v3_corrected = pysiaf.utils.rotations.getv2v3(attitude_matrix, ra_corrected, dec_corrected)
+    v2_corrected, v3_corrected = rotations.getv2v3(attitude_matrix,
+                                                   ra_corrected,
+                                                   dec_corrected)
 
     return v2_corrected, v3_corrected

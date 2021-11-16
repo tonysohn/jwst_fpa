@@ -48,7 +48,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/F150W')
+data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
@@ -132,8 +132,8 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
 
     distortion_reference_table.add_column(
         Column([aperture_name] * len(distortion_reference_table), name='AperName'), index=0)
-    distortion_reference_file_name = os.path.join(result_dir, 'distortion_coeffs_{}_{}.txt'.format(
-        aperture_name.lower(), coefficients_dict['name_seed']))
+    distortion_reference_file_name = os.path.join(result_dir, 'distortion_coeffs_{}_{}_{}_{}.txt'.format(
+        aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict['name_seed']))
     if verbose:
         distortion_reference_table.pprint()
 
@@ -144,7 +144,7 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
     comments.append('{} distortion coefficient file\n'.format(instrument_name))
     comments.append('Source file: {}'.format(file_name))
     comments.append('Aperture: {}'.format(aperture_name))
-    comments.append('')
+    comments.append('Filter/Pupil: {}/{}'.format(filter_name,pupil_name))
     comments.append('Generated {} {}'.format(timestamp.isot, timestamp.scale))
     comments.append('by {}'.format(username))
     comments.append('')
@@ -320,6 +320,8 @@ for obs in obs_collection.observations:
 
     instrument_name = obs.fpa_data.meta['INSTRUME']
     aperture_name   = obs.aperture.AperName
+    filter_name     = obs.fpa_data.meta['instrument_filter']
+    pupil_name      = obs.fpa_data.meta['instrument_pupil']
 
     plt.close('all')
     print('+'*100)
@@ -445,17 +447,20 @@ for obs in obs_collection.observations:
         A = lazAC.Alm[evaluation_frame_number][0:number_of_coefficients]
         B = lazAC.Alm[evaluation_frame_number][number_of_coefficients:]
 
-        # THIS IS WRONG, NEEDS UPDATE
         # Determine the inverse coefficients and perform roundtrip verification
         # C = A
         # D = B
         C = lazAC_inverse.Alm[evaluation_frame_number][0:number_of_coefficients]
         D = lazAC_inverse.Alm[evaluation_frame_number][number_of_coefficients:]
 
-        coefficients_dict_prep = {'Sci2IdlX': A, 'Sci2IdlY': B, 'Idl2SciX': C, 'Idl2SciY': D,
-                              'out_dir': plot_dir, 'aperture_name': aperture_name,
-                              'instrument_name': instrument_name,
-                              'name_seed': '{}_prep'.format(name_seed)}
+        coefficients_dict_prep = {'Sci2IdlX': A, 'Sci2IdlY': B,
+                                  'Idl2SciX': C, 'Idl2SciY': D,
+                                  'out_dir': plot_dir,
+                                  'aperture_name': aperture_name,
+                                  'filter_name': filter_name,
+                                  'pupil_name': pupil_name,
+                                  'instrument_name': instrument_name,
+                                  'name_seed': '{}_prep'.format(name_seed)}
 
         distortion_reference_file_name_prep = write_distortion_reference_file(coefficients_dict_prep)
         new_aperture_prep = pysiaf.aperture.Aperture()
@@ -483,8 +488,8 @@ for obs in obs_collection.observations:
         (CR, DR) = pysiaf.polynomial.add_rotation(CR, DR, -1*linear_parameters_inverse['rotation_y'])
 
         poly_coeffs = pysiaf.utils.tools.convert_polynomial_coefficients(A, B, C, D)
-        siaf_params_file = os.path.join(result_dir, 'siaf_params_{}_{}.txt'.format(
-         aperture_name.lower(), coefficients_dict_prep['name_seed']))
+        siaf_params_file = os.path.join(result_dir, 'siaf_params_{}_{}_{}_{}.txt'.format(
+         aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict_prep['name_seed']))
         with open(siaf_params_file, 'w') as f:
             print('V2Ref       =', poly_coeffs[6], file=f)
             print('V3Ref       =', poly_coeffs[7], file=f)
@@ -526,8 +531,14 @@ for obs in obs_collection.observations:
             if inspect_mode: plt.show()
 
         # write pysiaf source data file with distortion coefficients
-        coefficients_dict = {'Sci2IdlX': AR, 'Sci2IdlY': BR, 'Idl2SciX': CR, 'Idl2SciY': DR,
-        'out_dir': plot_dir, 'aperture_name': aperture_name, 'instrument_name': instrument_name, 'name_seed': name_seed}
+        coefficients_dict = {'Sci2IdlX': AR, 'Sci2IdlY': BR,
+                             'Idl2SciX': CR, 'Idl2SciY': DR,
+                             'out_dir': plot_dir,
+                             'aperture_name': aperture_name,
+                             'filter_name': filter_name,
+                             'pupil_name': pupil_name,
+                             'instrument_name': instrument_name,
+                             'name_seed': name_seed}
 
         distortion_reference_file_name = write_distortion_reference_file(coefficients_dict)
         if 'NIRISS' or 'FGS' in instrument_name:

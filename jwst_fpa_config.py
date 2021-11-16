@@ -8,17 +8,6 @@ home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
 data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/D2')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/D3')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs1/D4')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs2/D1')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs2/D2')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs2/D3')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs2/D4')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs3/F150W')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs3/F090W')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs3/F380M')
-#data_dir = os.path.join(home_dir, 'NIRISS/CAP-013/Obs3/F444W')
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
