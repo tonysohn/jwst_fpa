@@ -48,7 +48,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/')
+data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/F090W/NOGHOST/')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
