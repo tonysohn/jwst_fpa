@@ -800,12 +800,14 @@ def determine_attitude(obs_set, parameters):
     attitude_defining_obs = obs_set.observations[attitude_defining_aperture_index]
     attitude_defining_aperture = attitude_defining_obs.aperture
 
-    print('='*50)
+    print('='*80)
     print('determine_attitude: received obs_set with {} observations'.format(obs_set.n_observations))
     print('determine_attitude: attitude-defining aperture is {}'.format(attitude_defining_aperture_name))
+    print('='*80)
+    print()
 
-    # make sure that attitude_defining_aperture is processed first
-    # order observations by increasing separation from attitude_defining_aperture
+    # Make sure that attitude_defining_aperture is processed first
+    # Order observations by increasing separation from attitude_defining_aperture
     separation_tel_arcsec = np.zeros(obs_set.n_observations)
     for j in range(obs_set.n_observations):
         aperture = obs_set.observations[j].aperture
@@ -813,16 +815,11 @@ def determine_attitude(obs_set, parameters):
                                            (attitude_defining_aperture.V3Ref - aperture.V3Ref) ** 2)
     attitude_order_index = np.argsort(separation_tel_arcsec)
 
-    ra_pointing_keyword  = 'pointing_ra_v1'
-    dec_pointing_keyword = 'pointing_dec_v1'
-    pa_pointing_keyword  = 'pointing_pa_v3'
-    V2Ref = 0.
-    V3Ref = 0.
+    # Derive initial attitude using the boresight info of the first observation
 
-    # initial attitude from header of one observation
-    ra_attitude_deg  = attitude_defining_obs.fpa_data.meta[ra_pointing_keyword]
-    dec_attitude_deg = attitude_defining_obs.fpa_data.meta[dec_pointing_keyword]
-    pa_attitude_deg  = attitude_defining_obs.fpa_data.meta[pa_pointing_keyword]
+    ra_attitude_deg  = attitude_defining_obs.fpa_data.meta['pointing_ra_v1']
+    dec_attitude_deg = attitude_defining_obs.fpa_data.meta['pointing_dec_v1']
+    pa_attitude_deg  = attitude_defining_obs.fpa_data.meta['pointing_pa_v3']
 
     initial_ra_attitude_deg  = copy.deepcopy(ra_attitude_deg)
     initial_dec_attitude_deg = copy.deepcopy(dec_attitude_deg)
@@ -830,23 +827,27 @@ def determine_attitude(obs_set, parameters):
 
     fieldname_dict = attitude_defining_obs.fieldname_dict
 
-    attitude = pysiaf.rotations.attitude(V2Ref, V3Ref, ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
+    attitude = pysiaf.rotations.attitude(0., 0., ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
 
     for i, index in enumerate(attitude_order_index):
 
-        # with i increasing, the number of used observations increases
+        # With i increasing, the number of used observations increases
         obs_indices = attitude_order_index[0:i + 1]
         used_apertures = [name for name in aperture_names[obs_indices]]
+        print()
         print('Attitude determination with {} apertures: {}'.format(len(obs_indices), used_apertures))
+        print()
         iteration_number = 0
-        # determine and correct for alignment parameters of individual apertures using current attitude
+
+        # Determine and correct for alignment parameters of individual apertures using current attitude
 
         skip_temporary_alignment_for_aligned_apertures = parameters['skip_temporary_alignment_for_aligned_apertures']
         skipped_apertures = parameters['apertures_to_calibrate']
 
-        ### This part will run under default settings [STS]
+        # [STS] This part will run under default settings.
+        # [STS] But do we need below if using only FGS1_FULL??? *TBD*
         if perform_alignment_update:
-            print('+' * 20)
+            print('+' * 40)
             for align_index in obs_indices:
                 if verbose:
                     print('determine_attitude: Intermediate alignment of {}'.format(aperture_names[align_index]))
@@ -860,8 +861,8 @@ def determine_attitude(obs_set, parameters):
                         setattr(align_obs.aperture, '{}_corrected'.format(attribute), getattr(align_obs.aperture, '{}'.format(attribute)))
                     obs_set.observations[align_index].aperture = align_obs.aperture
                 else:
-                    print(align_obs.aperture.AperName)
-                    # get V2/V3 tangent plane coordinates of Gaia stars
+                    #print(align_obs.aperture.AperName)
+                    # get V2/V3 tangent plane coordinates of reference stars
                     align_obs.reference_catalog_matched = compute_sky_to_tel_in_table(align_obs.reference_catalog_matched, attitude,
                         align_obs.aperture, use_tel_boresight=use_tel_boresight)
 
@@ -869,16 +870,19 @@ def determine_attitude(obs_set, parameters):
                     alignment_reference_obs = copy.deepcopy(attitude_defining_obs)
                     alignment_reference_observation_index = attitude_defining_aperture_index
                     if verbose:
-                        print('Attitude defining aperture {}; Alignment reference aperture {}; current '
-                              'aperture '
-                              '{}'.format(attitude_defining_obs.aperture.AperName,
-                            alignment_reference_obs.aperture.AperName, align_obs.aperture.AperName))
+                        print('Attitude defining aperture = {}; '
+                              'Alignment reference aperture = {}; '
+                              'Current aperture = {}'.format(
+                              attitude_defining_obs.aperture.AperName,
+                              alignment_reference_obs.aperture.AperName,
+                              align_obs.aperture.AperName))
 
                     plot_residuals = parameters['plot_residuals']
                     plot_dir = parameters['plot_dir']
                     # align aperture
                     determine_aperture_error(align_obs, alignment_reference_obs, align_index,
-                                             alignment_reference_observation_index, plot_residuals=plot_residuals,
+                                             alignment_reference_observation_index,
+                                             plot_residuals=plot_residuals,
                                              plot_dir=plot_dir, verbose=verbose,
                                              idl_tel_method=parameters['idl_tel_method'],
                                              use_tel_boresight=parameters['use_tel_boresight'],
@@ -1053,27 +1057,6 @@ def determine_attitude(obs_set, parameters):
     attitude_dict['n_stars_total'] = len(star_catalog)
     attitude_dict['fit_residual_rms'] = lazAC.rms[parameters['evaluation_frame_number']]
     attitude_dict['aligned_obs_set'] = obs_set
-
-    ### TBD: Change this to JWST equivalent
-    # show offset between measured positions and reference positions using final attitude
-    if 0:
-        plot_aperture_names = ['FGS1', 'FGS2', 'FGS3', 'JWFCFIX', 'JWFC1FIX', 'JWFC2FIX', 'IUVISCTR', 'IUVIS1FIX',
-                               'IUVIS2FIX']
-        data = {}
-        reference_catalog = vstack([compute_sky_to_tel_in_table(obs.reference_catalog_matched, attitude, obs.aperture,
-                                                                use_tel_boresight=parameters['use_tel_boresight']) for
-                                    obs in obs_set.observations], metadata_conflicts='silent')
-        star_catalog = vstack([compute_idl_to_tel_in_table(obs.star_catalog_matched, obs.aperture,
-                                                           use_tel_boresight=parameters['use_tel_boresight'],
-                                                           method=parameters['idl_tel_method']) for obs in
-                               obs_set.observations], metadata_conflicts='silent')
-
-        data['reference'] = {'x': np.array(reference_catalog['v2_tangent_arcsec']),
-                             'y': np.array(reference_catalog['v3_tangent_arcsec'])}
-        data['comparison_0'] = {'x': np.array(star_catalog['v2_tangent_arcsec']),
-                                'y': np.array(star_catalog['v3_tangent_arcsec'])}
-        plot_spatial_difference(data, siaf=parameters['siaf'], plot_aperture_names=plot_aperture_names)
-
 
     return attitude_dict
 
@@ -1299,7 +1282,7 @@ def determine_focal_plane_alignment(obs_collection, parameters):
 
                         ### ATTITUDE DETERMINATION STEP ###
                         corrected_attitude = determine_attitude(obs_set, attitude_determination_parameters)
-                        
+
                         if 1:
                             for j in range(obs_set.n_observations):
                                 original_aperture = obs_set.observations[j].aperture

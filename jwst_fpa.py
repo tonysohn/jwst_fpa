@@ -217,6 +217,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         # generate an AlignmentObservationCollection object
         obs_collection = alignment.AlignmentObservationCollection(observations)
 
+        # [STS] Below is required to avoid error
         obs_collection.group_by('obs_id')
         # unique observation index for cross-identification
         # obs_collection.generate_attitude_groups()
