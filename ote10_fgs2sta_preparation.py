@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 
 from astropy.table import hstack
 from astropy import units as u
+from jwcf import hawki, hst
 
 import prepare_jwst_fpa_data
 
@@ -39,28 +40,16 @@ idl_tel_method = 'spherical'
 
 home_dir = os.environ['HOME']
 data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS1ics_to_Jframe')
-#base_dir = os.path.join(data_dir,'distortion_calibration')
-working_dir = os.path.join(data_dir, 'fgs_to_j')
-nominalpsf = False # or True
+working_dir = os.path.join(data_dir, 'fgstoj')
 
-observatory = 'JWST'
-prdopssoc_version = 'PRDOPSSOC-039'
-
-use_hawki_catalog = True
-
+reference_catalog_type = 'hst'
+nominalpsf = False # Leave this to False for OTE-10
 use_epsf = False # or False
-overwrite_source_extraction = True # or False
-###generate_standardized_fpa_data = True # or False
-###overwrite_distortion_reference_table = True
-
 save_plot = True # or False
 verbose = True # or False
 verbose_figures = True # or False
 show_extracted_sources = True # or False
 show_psfsubtracted_image = True
-
-overwrite_obs_collection = True
-overwrite_obs_xmatch_pickle = True
 
 inspect_mode = True # or False
 if inspect_mode is False:
@@ -91,12 +80,18 @@ def degree_to_mode(polynomial_degree):
 
 #=============================================================================
 
-from jwcf import hawki
-reference_catalog = hawki.hawki_catalog()
-reference_catalog.rename_column('ra_deg', 'ra')
-reference_catalog.rename_column('dec_deg', 'dec')
-reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
-
+if reference_catalog_type.lower() == 'hawki':
+    reference_catalog = hawki.hawki_catalog()
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+    reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
+elif reference_catalog_type.lower() == 'hst':
+    reference_catalog = hst.hst_catalog(decimal_year_of_observation=2022.0)
+    reference_catalog.rename_column('ra_deg', 'ra')
+    reference_catalog.rename_column('dec_deg', 'dec')
+    reference_catalog['j_magnitude'] = reference_catalog['j_mag_vega']
+else:
+    sys.exit('Unsupported Reference Catalog. Only HawkI and HST catalogs are currently supported.')
 
 obs_collection = []
 standardized_data_dir = os.path.join(working_dir,'fpa_data')
@@ -106,16 +101,15 @@ for dir in [working_dir, standardized_data_dir, result_dir]:
     if os.path.isdir(dir) is False:
         os.makedirs(dir)
 
-naming_tag = 'photutils{}'.format(photutils.__version__)
 extraction_parameters = {'nominalpsf': nominalpsf,
                          'use_epsf': use_epsf,
                          'show_extracted_sources': show_extracted_sources,
-                         'show_psfsubtracted_image': show_psfsubtracted_image,
-                         'naming_tag': naming_tag}
+                         'show_psfsubtracted_image': show_psfsubtracted_image}
 
-im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern, standardized_data_dir,
+im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern,
+                                                standardized_data_dir,
                                                 parameters=extraction_parameters,
-                                                overwrite_source_extraction=overwrite_source_extraction)
+                                                overwrite_source_extraction=True)
 
 plt.close('all')
 
@@ -127,12 +121,6 @@ apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FU
                              'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN']
 siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
-#siaf_detector_layout = pysiaf.read.read_siaf_detector_layout()
-#apertures_dict={'instrument': siaf_detector_layout['InstrName'].data}
-#master_aperture_names = siaf_detector_layout['AperName'].data
-#apertures_dict['pattern'] = master_aperture_names
-#siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict)
-
 # define pickle files
 obs_xmatch_pickle_file = os.path.join(result_dir,'observations_xmatch.pkl')
 obs_collection_pickle_file = os.path.join(result_dir,'obs_collection.pkl')
@@ -142,12 +130,11 @@ if os.path.isdir(crossmatch_dir) is False: os.makedirs(crossmatch_dir)
 
 crossmatch_parameters = {}
 crossmatch_parameters['pickle_file'] = obs_xmatch_pickle_file
-crossmatch_parameters['overwrite'] = overwrite_obs_xmatch_pickle
+crossmatch_parameters['overwrite'] = True
 crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
 crossmatch_parameters['verbose_figures'] = verbose_figures
 crossmatch_parameters['save_plot'] = save_plot
 crossmatch_parameters['plot_dir'] = crossmatch_dir
-crossmatch_parameters['observatory'] = observatory
 crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
 crossmatch_parameters['overwrite_pm_correction'] = False # or True
 crossmatch_parameters['verbose'] = verbose
