@@ -246,10 +246,10 @@ plt.close('all')
 
 # Load all relevant siaf apertures
 apertures_dict = {}
-apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI']
+apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI'] + ['NIRSpec']*2
 apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
                              'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
-                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL']
+                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL', 'NRS1_FULL', 'NRS2_FULL']
 siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
 #siaf_detector_layout = pysiaf.read.read_siaf_detector_layout()

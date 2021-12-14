@@ -10,33 +10,24 @@ Use
 
 
 """
-from __future__ import print_function
 import os
 import sys
-import copy
-import glob
-import numpy as np
 import pickle
+import numpy as np
 import matplotlib.pyplot as plt
 
+import pysiaf
 from astropy.table import hstack
 from astropy import units as u
 from jwcf import hawki, hst
 
 import prepare_jwst_fpa_data
 
-import pysiaf
-import photutils
-
-deg2mas =  u.deg.to(u.mas)
-
 #####################################
 plt.close('all')
 #####################################
 
 ### START OF CONFIGURATION PARAMETERS
-
-idl_tel_method = 'spherical'
 
 home_dir = os.environ['HOME']
 data_dir = os.path.join(home_dir,'LRE3/OTE-10/FGS1ics_to_Jframe')
@@ -45,40 +36,12 @@ working_dir = os.path.join(data_dir, 'fgstoj')
 reference_catalog_type = 'hst'
 nominalpsf = False # Leave this to False for OTE-10
 use_epsf = False # or False
-save_plot = True # or False
-verbose = True # or False
-verbose_figures = True # or False
 show_extracted_sources = True # or False
 show_psfsubtracted_image = True
-
-inspect_mode = True # or False
-if inspect_mode is False:
-    verbose_figures = False
 
 camera_pattern = '_cal.fits'
 
 ### END OF CONFIGURATION PARAMETERS
-
-#=============================================================================
-
-def degree_to_mode(polynomial_degree):
-    """Convert polynomial degree to mode parameter k.
-
-    Parameters
-    ----------
-    polynomial_degree : int, float
-        Degree of polynomial
-
-    Returns
-    -------
-    k : int, float
-        Mode parameter
-
-    """
-    k = 2 * (polynomial_degree + 1)
-    return k
-
-#=============================================================================
 
 if reference_catalog_type.lower() == 'hawki':
     reference_catalog = hawki.hawki_catalog()
@@ -115,10 +78,11 @@ plt.close('all')
 
 # Load all siaf apertures
 apertures_dict = {}
-apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS']
-apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
-                             'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
-                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN']
+    apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI'] + ['NIRSpec']*2
+    apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
+                                 'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
+                                 'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL', 'NRS1_FULL', 'NRS2_FULL']
+
 siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
 # define pickle files
@@ -132,14 +96,14 @@ crossmatch_parameters = {}
 crossmatch_parameters['pickle_file'] = obs_xmatch_pickle_file
 crossmatch_parameters['overwrite'] = True
 crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
-crossmatch_parameters['verbose_figures'] = verbose_figures
-crossmatch_parameters['save_plot'] = save_plot
+crossmatch_parameters['verbose_figures'] = True
+crossmatch_parameters['save_plot'] = True
 crossmatch_parameters['plot_dir'] = crossmatch_dir
 crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
 crossmatch_parameters['overwrite_pm_correction'] = False # or True
-crossmatch_parameters['verbose'] = verbose
+crossmatch_parameters['verbose'] = True
 crossmatch_parameters['siaf'] = siaf
-crossmatch_parameters['idl_tel_method'] = idl_tel_method
+crossmatch_parameters['idl_tel_method'] = 'spherical'
 crossmatch_parameters['reference_catalog'] = reference_catalog
 crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
 crossmatch_parameters['rejection_level_sigma'] = 3 # or 5
