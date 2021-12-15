@@ -572,7 +572,7 @@ def crossmatch_fpa_data(parameters):
             offset_v3 = sigma_clip(dv3.data, sigma=2.5, maxiters=5, cenfunc='median')
             avg_offset_v3 = 3*np.ma.median(offset_v3) - 2*np.ma.mean(offset_v3)
 
-            if 1:
+            if verbose_figures:
                 plt.figure(figsize=(10,6))
                 plt.suptitle('Initial offsets between measured vs. catalog-based positions - {}'.format(data_name))
                 ax1 = plt.subplot(1,2,1)
@@ -596,7 +596,7 @@ def crossmatch_fpa_data(parameters):
             ######################################################################################
 
             # if verbose_figures:
-            if 1:
+            if verbose_figures:
                 plt.figure(figsize=(10,10))
                 plt.plot(obs.star_catalog['v2_spherical_arcsec']+avg_offset_v2,
                          obs.star_catalog['v3_spherical_arcsec']+avg_offset_v3, 'ko', mfc='w', mew=1,
