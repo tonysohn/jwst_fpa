@@ -377,18 +377,22 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         extracted_sources.meta['DATAPATH'] = os.path.dirname(f)
         extracted_sources.meta['EPOCH'] = header_info['epoch_isot']
 
-        if 'FGS' in extracted_sources.meta['instrument_name']:
-            out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}.fits'.format(
-                                    extracted_sources.meta['instrument_name'],
-                                    extracted_sources.meta['subarray_name'],
-                                    extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
-        else:
-            out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}_{}_{}.fits'.format(
-                                    extracted_sources.meta['instrument_name'],
-                                    extracted_sources.meta['subarray_name'],
-                                    extracted_sources.meta['instrument_filter'],
-                                    extracted_sources.meta['instrument_pupil'],
-                                    extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
+
+        out_file = os.path.join(standardized_data_dir, '{}_FPA_data.fits'.format(
+                                extracted_sources.meta['DATAFILE'].split(',')[0]))
+
+        #if 'FGS' in extracted_sources.meta['instrument_name']:
+        #    out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}.fits'.format(
+        #                            extracted_sources.meta['instrument_name'],
+        #                            extracted_sources.meta['subarray_name'],
+        #                            extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
+        #else:
+        #    out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}_{}_{}.fits'.format(
+        #                            extracted_sources.meta['instrument_name'],
+        #                            extracted_sources.meta['subarray_name'],
+        #                            extracted_sources.meta['instrument_filter'],
+        #                            extracted_sources.meta['instrument_pupil'],
+        #                            extracted_sources.meta['DATAFILE'].split('.')[0]).replace('/',''))
 
         print('Writing {}'.format(out_file))
         with warnings.catch_warnings():
@@ -412,7 +416,7 @@ def crossmatch_fpa_data(parameters):
     print('\nCROSSMATCH OF FPA DATA WITH REFERENCE CATALOG')
     if (not os.path.isfile(parameters['pickle_file']) or parameters['overwrite']):
 
-        fpa_file_names = 'FPA_data_*.fits'
+        fpa_file_names = '*_FPA_data.fits'
         fpa_data_files = glob.glob(os.path.join(parameters['standardized_data_dir'], fpa_file_names))
         fpa_data_files.sort()
         verbose_figures = parameters['verbose_figures']
