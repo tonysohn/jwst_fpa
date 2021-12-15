@@ -379,7 +379,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
 
         out_file = os.path.join(standardized_data_dir, '{}_FPA_data.fits'.format(
-                                extracted_sources.meta['DATAFILE'].split(',')[0]))
+                                extracted_sources.meta['DATAFILE'].split('.')[0]))
 
         #if 'FGS' in extracted_sources.meta['instrument_name']:
         #    out_file = os.path.join(standardized_data_dir,'FPA_data_{}_{}_{}.fits'.format(
