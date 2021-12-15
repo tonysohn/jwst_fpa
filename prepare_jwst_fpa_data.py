@@ -412,7 +412,8 @@ def crossmatch_fpa_data(parameters):
     print('\nCROSSMATCH OF FPA DATA WITH REFERENCE CATALOG')
     if (not os.path.isfile(parameters['pickle_file']) or parameters['overwrite']):
 
-        fpa_data_files = glob.glob(os.path.join(parameters['standardized_data_dir'], '*.fits'))
+        fpa_file_names = 'FPA_data_*.fits'
+        fpa_data_files = glob.glob(os.path.join(parameters['standardized_data_dir'], fpa_file_names))
         fpa_data_files.sort()
         verbose_figures = parameters['verbose_figures']
         if parameters['save_plot']:
