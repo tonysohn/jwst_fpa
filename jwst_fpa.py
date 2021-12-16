@@ -152,6 +152,7 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              'use_epsf': False, # change to True later
                              'show_extracted_sources': True,
                              'show_psfsubtracted_image': True,
+                             'save_plot': save_plot
                              #'naming_tag':  naming_tag
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : True,
@@ -183,9 +184,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         for attribute in 'V2Ref V3Ref'.split():
             setattr(siaf[aperture_name], '{}_original'.format(attribute), getattr(siaf[aperture_name], attribute))
 
-    crossmatch_dir = os.path.join(standardized_data_dir, 'crossmatch')
-    if os.path.isdir(crossmatch_dir) is False: os.makedirs(crossmatch_dir)
-
     if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection):
 
         # crossmatch the stars in every aperture with the reference catalog (here Hawk-I)
@@ -196,7 +194,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
         crossmatch_parameters['verbose_figures'] = verbose_figures
         crossmatch_parameters['save_plot'] = save_plot
-        crossmatch_parameters['plot_dir'] = crossmatch_dir
+        crossmatch_parameters['plot_dir'] = standardized_data_dir
         crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
         crossmatch_parameters['overwrite_pm_correction'] = False
         crossmatch_parameters['verbose'] = verbose
@@ -207,6 +205,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['rejection_level_sigma'] = 3
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
         crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
+        crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
 #        crossmatch_parameters['camera_names'] = ['NIRISS','FGS1','FGS2']
 #        crossmatch_parameters['xmatch_radius_camera'] = 0.5 * u.arcsec
 #        crossmatch_parameters['xmatch_radius_fgs'] = None

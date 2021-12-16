@@ -89,16 +89,13 @@ siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 obs_xmatch_pickle_file = os.path.join(result_dir,'observations_xmatch.pkl')
 obs_collection_pickle_file = os.path.join(result_dir,'obs_collection.pkl')
 
-crossmatch_dir = os.path.join(standardized_data_dir, 'crossmatch')
-if os.path.isdir(crossmatch_dir) is False: os.makedirs(crossmatch_dir)
-
 crossmatch_parameters = {}
 crossmatch_parameters['pickle_file'] = obs_xmatch_pickle_file
 crossmatch_parameters['overwrite'] = True
 crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
 crossmatch_parameters['verbose_figures'] = True
 crossmatch_parameters['save_plot'] = True
-crossmatch_parameters['plot_dir'] = crossmatch_dir
+crossmatch_parameters['plot_dir'] = standardized_data_dir
 crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
 crossmatch_parameters['overwrite_pm_correction'] = False # or True
 crossmatch_parameters['verbose'] = True
@@ -108,6 +105,7 @@ crossmatch_parameters['reference_catalog'] = reference_catalog
 crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
 crossmatch_parameters['rejection_level_sigma'] = 3 # or 5
 crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
+crossmatch_parameters['fpa_file_name'] = None
 
 # Call the crossmatch routine
 observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)

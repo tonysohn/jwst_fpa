@@ -48,7 +48,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'NIRISS/CAP-011b/')
+data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
@@ -224,7 +224,8 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
     extraction_parameters = {'nominalpsf': nominalpsf,
                              'use_epsf': use_epsf,
                              'show_extracted_sources': show_extracted_sources,
-                             'show_psfsubtracted_image': show_psfsubtracted_image}
+                             'show_psfsubtracted_image': show_psfsubtracted_image,
+                             'save_plot': save_plot}
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : use_DAOStarFinder_for_epsf,
                              #'use_weights_for_epsf': False,
@@ -236,7 +237,8 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              # 'use_epsf': False,
                              # 'show_extracted_sources': False}
 
-    im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern, standardized_data_dir,
+    im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern,
+                                                    standardized_data_dir,
                                                     parameters=extraction_parameters,
                                                     overwrite_source_extraction=overwrite_source_extraction)
 
@@ -276,8 +278,6 @@ else:
 # define pickle files
 obs_xmatch_pickle_file = os.path.join(result_dir, 'obs_xmatch.pkl')
 obs_collection_pickle_file = os.path.join(result_dir, 'obs_collection.pkl')
-crossmatch_dir = os.path.join(standardized_data_dir, 'crossmatch')
-if os.path.isdir(crossmatch_dir) is False: os.makedirs(crossmatch_dir)
 
 if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection):
 
@@ -289,7 +289,7 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['standardized_data_dir'] = standardized_data_dir
     crossmatch_parameters['verbose_figures'] = verbose_figures
     crossmatch_parameters['save_plot'] = save_plot
-    crossmatch_parameters['plot_dir'] = crossmatch_dir
+    crossmatch_parameters['plot_dir'] = standardized_data_dir
     crossmatch_parameters['correct_reference_for_proper_motion'] = False # or True
     crossmatch_parameters['overwrite_pm_correction'] = False # or True
     crossmatch_parameters['verbose'] = verbose
@@ -300,6 +300,7 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['rejection_level_sigma'] = 2.5 # or 5
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
     crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
+    crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
     #        crossmatch_parameters['xmatch_radius_camera'] = 0.2 * u.arcsec
     #        crossmatch_parameters['xmatch_radius_fgs'] = None
     #        if run_on_single_niriss_file or run_on_single_fgs_file:
@@ -599,7 +600,8 @@ for obs in obs_collection.observations:
             if save_plot:
                 figname = os.path.join(plot_dir,'spatial_difference.pdf')
                 plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
-            plt.show()
+            if verbose_figures:
+                plt.show()
 
             rms_x = np.std(x_idl_check - x_idl_siaf)
             rms_y = np.std(y_idl_check - y_idl_siaf)

@@ -66,8 +66,12 @@ def select_isolated_sources(extracted_sources, nearest_neighbour_distance_thresh
 
 def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                          overwrite_source_extraction=False):
-    """Generate standardized focal plane alignment (fpa) data based on JWST camera data.
+
+    """Generate standardized focal plane alignment (fpa) data
+       based on JWST camera image.
     """
+
+    save_plot = parameters['save_plot']
 
     file_list = glob.glob(os.path.join(data_dir, '*{}'.format(pattern)))
 
@@ -155,10 +159,13 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             header_info['APERTURE'] = None
         header_info['CHIP'] = 0
 
-        extracted_sources_dir = os.path.join(standardized_data_dir, 'extraction')
-        if os.path.isdir(extracted_sources_dir) is False: os.makedirs(extracted_sources_dir)
-        extracted_sources_file = os.path.join(extracted_sources_dir,
-                                              '{}_extracted_sources.fits'.format(os.path.basename(f).split('.')[0]))
+        # TBD: Need to remove making yet another directory
+        #extracted_sources_dir = os.path.join(standardized_data_dir, 'extraction')
+        #if os.path.isdir(extracted_sources_dir) is False:
+        #    os.makedirs(extracted_sources_dir)
+        extracted_sources_file = os.path.join(standardized_data_dir, #extracted_sources_dir,
+                                              '{}_extracted_sources.fits'
+                                              .format(os.path.basename(f).split('.')[0]))
 
         mask_extreme_slope_values = False
         parameters['maximum_slope_value'] = 1000.
@@ -258,21 +265,28 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 nddata = NDData(data=data_cps_bkgsub)
                 stars = extract_stars(nddata, stars_tbl, size=size)
 
-                # Create plot showing all PSF stars
-                if 1:
-                    nrows = 10
-                    ncols = 10
-                    fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 20), squeeze=True)
-                    ax = ax.ravel()
-                    for i in range(nrows * ncols):
-                        if i <= len(stars)-1:
-                            norm = simple_norm(stars[i], 'log', percent=99.)
-                            ax[i].imshow(stars[i], norm=norm, origin='lower', cmap='viridis')
-                    plt.title('{} sample stars for epsf'.format(header_info['APERTURE']))
-                    psf_plot_file = os.path.join(extracted_sources_dir,
-                                                 '{}_sample_psfs.pdf'.format(os.path.basename(f).split('.')[0]))
-                    plt.savefig(psf_plot_file)
+                #
+                # Figure - PSF stars
+                #
+                nrows = 10
+                ncols = 10
+                fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 20), squeeze=True)
+                ax = ax.ravel()
+                for i in range(nrows * ncols):
+                    if i <= len(stars)-1:
+                        norm = simple_norm(stars[i], 'log', percent=99.)
+                        ax[i].imshow(stars[i], norm=norm, origin='lower', cmap='viridis')
+                plt.title('{} sample stars for epsf'.format(header_info['APERTURE']))
+                if save_plot:
+                    figname = os.path.join(extracted_sources_dir,
+                              '{}_sample_psfs.pdf'.format(os.path.basename(f).split('.')[0]))
+                    plt.savefig(figname)
+                if parameters['show_extracted_sources']:
+                    plt.show()
 
+                #
+                # Timer for ePSF construction
+                #
                 tic = time.perf_counter()
                 epsf_builder = EPSFBuilder(oversampling=4, maxiters=3, progress_bar=False)
                 print("Building ePSF ...")
@@ -280,16 +294,20 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 toc = time.perf_counter()
                 print("Time elapsed for building ePSF:", toc-tic)
 
-                # Create ePSF plot
-                if 1:
-                    norm_epsf = simple_norm(epsf.data, 'log', percent=99.)
-                    plt.figure()
-                    plt.imshow(epsf.data, norm=norm_epsf, origin='lower', cmap='viridis')
-                    plt.colorbar()
-                    plt.title('{} epsf using {} stars'.format(header_info['APERTURE'], len(stars_tbl)))
-                    epsf_plot_file = os.path.join(extracted_sources_dir,
-                                                  '{}_epsf.pdf'.format(os.path.basename(f).split('.')[0]))
-                    plt.savefig(epsf_plot_file)
+                #
+                # Figure - ePSF plot
+                #
+                norm_epsf = simple_norm(epsf.data, 'log', percent=99.)
+                plt.figure()
+                plt.imshow(epsf.data, norm=norm_epsf, origin='lower', cmap='viridis')
+                plt.colorbar()
+                plt.title('{} epsf using {} stars'.format(header_info['APERTURE'], len(stars_tbl)))
+                if save_plot:
+                    figname = os.path.join(extracted_sources_dir,
+                              '{}_epsf.pdf'.format(os.path.basename(f).split('.')[0]))
+                    plt.savefig(figname)
+                if parameters['show_extracted_sources']:
+                    plt.show()
 
                 daogroup = DAOGroup(5.0*2.0)
                 psf_model = epsf.copy()
@@ -310,22 +328,25 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 extracted_sources = epsf_extracted_sources
                 extracted_sources.write(extracted_sources_file, overwrite=True)
 
+                norm = simple_norm(data_cps, 'sqrt', percent=99.)
+                diff = photometry.get_residual_image()
+                plt.figure()
+                ax1 = plt.subplot(1,2,1)
+                plt.xlabel("X [pix]")
+                plt.ylabel("Y [pix]")
+                ax1.imshow(data_cps, norm=norm, cmap='Greys')
+                ax2 = plt.subplot(1,2,2)
+                plt.xlabel("X [pix]")
+                plt.ylabel("Y [pix]")
+                ax2.imshow(diff, norm=norm, cmap='Greys')
+                plt.title('PSF subtracted image for {}'.format(os.path.basename(f)))
+                if save_plot:
+                    figname = os.path.join(extracted_sources_dir,
+                                           '{}_psfsubtracted_image.pdf'
+                                           .format(os.path.basename(f).split('.')[0]))
+                    plt.savefig(figname)
                 if parameters['show_psfsubtracted_image']:
-                    norm = simple_norm(data_cps, 'sqrt', percent=99.)
-                    psf_subtracted_file = os.path.join(extracted_sources_dir,
-                                          '{}_psfsubtracted_image.pdf'.format(os.path.basename(f).split('.')[0]))
-                    diff = photometry.get_residual_image()
-                    plt.figure()
-                    ax1 = plt.subplot(1,2,1)
-                    plt.xlabel("X [pix]")
-                    plt.ylabel("Y [pix]")
-                    ax1.imshow(data_cps, norm=norm, cmap='Greys')
-                    ax2 = plt.subplot(1,2,2)
-                    plt.xlabel("X [pix]")
-                    plt.ylabel("Y [pix]")
-                    ax2.imshow(diff, norm=norm, cmap='Greys')
-                    plt.title('PSF subtracted image for {}'.format(os.path.basename(f)))
-                    plt.savefig(psf_subtracted_file)
+                    plt.show()
 
             else:
 
@@ -335,19 +356,23 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             positions = np.transpose((extracted_sources['xcentroid'], extracted_sources['ycentroid']))
             apertures = CircularAperture(positions, r=10)
             norm = simple_norm(data_cps, 'sqrt', percent=99.)
-            extracted_plot_file = os.path.join(extracted_sources_dir,
-                                  '{}_extracted_sources.pdf'.format(os.path.basename(f).split('.')[0]))
+
             plt.figure(figsize=(12,12))
             plt.xlabel("X [pix]")
             plt.ylabel("Y [pix]")
             plt.imshow(data_cps, norm=norm, cmap='Greys', origin='lower')
             apertures.plot(color='blue', lw=1.5, alpha=0.5)
             title_string = '{}: {} selected sources'.format(os.path.basename(f),
-                                                             len(extracted_sources))
+                                                            len(extracted_sources))
             plt.title(title_string)
             plt.tight_layout()
-            plt.savefig(extracted_plot_file)
-            if parameters['show_extracted_sources']: plt.show()
+            if save_plot:
+                figname = os.path.join(standardized_data_dir,
+                                       '{}_extracted_sources.pdf'
+                                       .format(os.path.basename(f).split('.')[0]))
+                plt.savefig(figname)
+            if parameters['show_extracted_sources']:
+                plt.show()
             plt.close()
 
         else:
@@ -376,7 +401,6 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         extracted_sources.meta['DATAFILE'] = os.path.basename(f)
         extracted_sources.meta['DATAPATH'] = os.path.dirname(f)
         extracted_sources.meta['EPOCH'] = header_info['epoch_isot']
-
 
         out_file = os.path.join(standardized_data_dir, '{}_FPA_data.fits'.format(
                                 extracted_sources.meta['DATAFILE'].split('.')[0]))
@@ -416,9 +440,17 @@ def crossmatch_fpa_data(parameters):
     print('\nCROSSMATCH OF FPA DATA WITH REFERENCE CATALOG')
     if (not os.path.isfile(parameters['pickle_file']) or parameters['overwrite']):
 
-        fpa_file_names = '*_FPA_data.fits'
-        fpa_data_files = glob.glob(os.path.join(parameters['standardized_data_dir'], fpa_file_names))
+        if parameters['fpa_file_name'] is None:
+            fpa_file_name = '*_FPA_data.fits'
+        else:
+            if not os.path.isfile(os.path.join(parameters['standardized_data_dir'],
+                                               parameters['fpa_file_name'])):
+                sys.exit('Standardized FPA file not found.')
+            fpa_file_name = parameters['fpa_file_name']
+
+        fpa_data_files = glob.glob(os.path.join(parameters['standardized_data_dir'], fpa_file_name))
         fpa_data_files.sort()
+
         verbose_figures = parameters['verbose_figures']
         if parameters['save_plot']:
             save_plot = 1
@@ -576,58 +608,62 @@ def crossmatch_fpa_data(parameters):
             offset_v3 = sigma_clip(dv3.data, sigma=2.5, maxiters=5, cenfunc='median')
             avg_offset_v3 = 3*np.ma.median(offset_v3) - 2*np.ma.mean(offset_v3)
 
+            #
+            # Figure - Initial Offsets
+            #
+            plt.figure(figsize=(10,6))
+            plt.suptitle('Initial offsets between measured vs. catalog-based positions - {}'.format(data_name))
+            ax1 = plt.subplot(1,2,1)
+            ax1.set_xlabel('V2 offset [arcsec]')
+            ax1.set_ylabel('N')
+            ax1.hist(offset_v2, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
+            ax1.axvline(x=avg_offset_v2, color='r', linewidth=2)
+            ax2 = plt.subplot(1,2,2)
+            ax2.set_xlabel('V3 offset [arcsec]')
+            ax2.set_ylabel('N')
+            ax2.hist(offset_v3, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
+            ax2.axvline(x=avg_offset_v3, color='r', linewidth=2)
+            plt.tight_layout()
+            if save_plot:
+                figname = os.path.join(plot_dir,'%s_initial_xmatch.pdf' % data_name)
+                plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
             if verbose_figures:
-                plt.figure(figsize=(10,6))
-                plt.suptitle('Initial offsets between measured vs. catalog-based positions - {}'.format(data_name))
-                ax1 = plt.subplot(1,2,1)
-                ax1.set_xlabel('V2 offset [arcsec]')
-                ax1.set_ylabel('N')
-                ax1.hist(offset_v2, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
-                ax1.axvline(x=avg_offset_v2, color='r', linewidth=2)
-                ax2 = plt.subplot(1,2,2)
-                ax2.set_xlabel('V3 offset [arcsec]')
-                ax2.set_ylabel('N')
-                ax2.hist(offset_v3, alpha=0.5, histtype='bar', edgecolor='black', linewidth=1.2)
-                ax2.axvline(x=avg_offset_v3, color='r', linewidth=2)
-                plt.tight_layout()
                 plt.show()
-                plt.close()
-                #1/0
+            plt.close()
             #
             # Inpsect figure above, and if you see something weird, the bright mag cutoff for reference catalog
             # and/or the number of sources used in the observed catalog can be changed.
             #
             ######################################################################################
 
-            # if verbose_figures:
+            #
+            # Figure - v2v3 crossmatch
+            #
+            plt.figure(figsize=(10,10))
+            plt.plot(obs.star_catalog['v2_spherical_arcsec']+avg_offset_v2,
+                     obs.star_catalog['v3_spherical_arcsec']+avg_offset_v3, 'ko', mfc='w', mew=1,
+                     label = 'Measured positions')
+            plt.plot(obs.reference_catalog['v2_spherical_arcsec'],
+                     obs.reference_catalog['v3_spherical_arcsec'], 'b.',
+                     label = 'Reference catalog positions')
+            corners = aperture.corners('tel')
+            corners_x = corners[0]
+            corners_y = corners[1]
+            buffer = 10
+            plt.xlim(np.min(corners_x)-buffer, np.max(corners_x)+buffer)
+            plt.ylim(np.min(corners_y)-buffer, np.max(corners_y)+buffer)
+            plt.axis('equal')
+            plt.title(fpa_name_seed)
+            aperture.plot()
+            plt.legend(loc='upper right')
+            ax = plt.gca()
+            # ax.invert_yaxis()
+            if save_plot:
+                figure_name = os.path.join(plot_dir, '%s_v2v3_xmatch.pdf' % data_name)
+                plt.savefig(figure_name, transparent=True, bbox_inches='tight', pad_inches=0)
             if verbose_figures:
-                plt.figure(figsize=(10,10))
-                plt.plot(obs.star_catalog['v2_spherical_arcsec']+avg_offset_v2,
-                         obs.star_catalog['v3_spherical_arcsec']+avg_offset_v3, 'ko', mfc='w', mew=1,
-                         label = 'Measured positions')
-                plt.plot(obs.reference_catalog['v2_spherical_arcsec'],
-                         obs.reference_catalog['v3_spherical_arcsec'], 'b.',
-                         label = 'Reference catalog positions')
-                corners = aperture.corners('tel')
-                corners_x = corners[0]
-                corners_y = corners[1]
-                buffer = 10
-                plt.xlim(np.min(corners_x)-buffer, np.max(corners_x)+buffer)
-                plt.ylim(np.min(corners_y)-buffer, np.max(corners_y)+buffer)
-                plt.axis('equal')
-                plt.title(fpa_name_seed)
-                aperture.plot()
-                plt.legend(loc='upper right')
-                ax = plt.gca()
-                # ax.invert_yaxis()
-                if save_plot == 1:
-                    figure_name = os.path.join(plot_dir, '%s_v2v3.pdf' % data_name)
-                    plt.savefig(figure_name, transparent=True, bbox_inches='tight', pad_inches=0)
-
-                if verbose_figures: plt.show()
-                plt.close()
-
-                #1/0
+                plt.show()
+            plt.close()
 
             remove_multiple_matches = True
             retain_best_match = True
@@ -644,13 +680,6 @@ def crossmatch_fpa_data(parameters):
 
 #            plt.close(all)
 
-            # # tackle wrapping or RA coordinates
-            # if np.ptp(star_cat.ra).value > 350:
-            #     star_cat.ra[np.where(star_cat.ra > 180 * u.deg)[0]] -= 360 * u.deg
-            # if np.ptp(reference_cat.ra).value > 350:
-            #     reference_cat.ra[np.where(reference_cat.ra > 180 * u.deg)[0]] -= 360 * u.deg
-
-            #xmatch_radius = copy.deepcopy(xmatch_radius)
 
             ###
             ### TBD: Try replacing routine below with second run of matchutils.TPMatch instead of relying on pystortion
