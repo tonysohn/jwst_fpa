@@ -697,15 +697,20 @@ def crossmatch_fpa_data(parameters):
 
 
 
-            idx_reference_cat, idx_star_cat, d2d, d3d, diff_ra, diff_dec = crossmatch.xmatch(
-                reference_cat, star_cat, xmatch_radius, rejection_level_sigma, verbose=verbose,
-                verbose_figures=verbose_figures, saveplot=save_plot, out_dir=plot_dir,
-                name_seed=fpa_name_seed, retain_best_match=retain_best_match,
-                remove_multiple_matches=remove_multiple_matches)
+            idx_reference_cat, idx_star_cat, d2d, d3d, diff_ra, diff_dec = \
+                crossmatch.xmatch(reference_cat, star_cat, xmatch_radius,
+                                  rejection_level_sigma, verbose=verbose,
+                                  verbose_figures=verbose_figures,
+                                  saveplot=save_plot, out_dir=plot_dir,
+                                  name_seed=fpa_name_seed,
+                                  retain_best_match=retain_best_match,
+                                  remove_multiple_matches=remove_multiple_matches)
 
-            print(
-                '{:d} measured stars, {:d} reference catalog stars in the aperture, {:d} matches.'.format(
-                    len(obs.star_catalog), np.sum(mask), len(idx_reference_cat)))
+            print('{:d} measured stars, \
+                   {:d} reference catalog stars in the aperture, \
+                   {:d} matches.'
+                   .format(len(obs.star_catalog), np.sum(mask),
+                           len(idx_reference_cat)))
 
 
             obs.number_of_measured_stars = len(obs.star_catalog)
