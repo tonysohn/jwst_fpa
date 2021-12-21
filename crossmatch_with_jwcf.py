@@ -22,7 +22,7 @@ from astropy import units as u
 from jwcf import hawki, hst
 
 from jwst import datamodels
-import prepare_jwst_fpa_data
+import prepare_jwst_fpa_data, alignment
 
 
 def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
@@ -96,7 +96,7 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
     siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
     # define pickle files
-    obs_xmatch_pickle_file = os.path.join(result_dir,fname_head+'_xmatch.pkl')
+    obs_xmatch_pickle_file = os.path.join(result_dir, fname_head+'_xmatch.pkl')
     fpa_file_name = '{}_FPA_data.fits'.format(fname_head)
 
     crossmatch_parameters = {}
@@ -121,6 +121,11 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
 
     # Call the crossmatch routine
     observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)
+
+    # Output the obs_collection pickle file
+    obs_collection = alignment.AlignmentObservationCollection(observations)
+    obs_collection_file = os.path.join(result_dir, fname_head+'_obs_collection.pkl')
+    pickle.dump(obs_collection, open(obs_collection_file, 'wb'))
 
     obs = pickle.load(open(obs_xmatch_pickle_file, "rb"))
     obs = obs[0]
