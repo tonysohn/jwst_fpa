@@ -816,7 +816,8 @@ def determine_attitude(obs_set, parameters):
     attitude_order_index = np.argsort(separation_tel_arcsec)
 
     # Derive initial attitude using the boresight info of the first observation
-
+    V2Ref = 0.
+    V3Ref = 0.
     ra_attitude_deg  = attitude_defining_obs.fpa_data.meta['pointing_ra_v1']
     dec_attitude_deg = attitude_defining_obs.fpa_data.meta['pointing_dec_v1']
     pa_attitude_deg  = attitude_defining_obs.fpa_data.meta['pointing_pa_v3']
@@ -932,9 +933,12 @@ def determine_attitude(obs_set, parameters):
             # Update the attitude using the corrected (ra, dec, pa)
             attitude = pysiaf.rotations.attitude(V2Ref, V3Ref, ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
 
-            reference_catalog = vstack([compute_sky_to_tel_in_table(obs.reference_catalog_matched, attitude, obs.aperture,
-                                                                    use_tel_boresight=parameters['use_tel_boresight'])
-                                        for obs in obs_set.observations[obs_indices]], metadata_conflicts='silent')
+            reference_catalog = vstack([compute_sky_to_tel_in_table(
+                                        obs.reference_catalog_matched,
+                                        attitude,
+                                        obs.aperture,
+                                        use_tel_boresight=parameters['use_tel_boresight'])
+                                      for obs in obs_set.observations[obs_indices]], metadata_conflicts='silent')
             if perform_distortion_correction:
                 star_catalog = vstack([compute_idl_to_tel_in_table(obs.star_catalog_matched, obs.aperture,
                                                                    distortion_correction=obs.distortion_dict,
