@@ -965,22 +965,24 @@ def determine_attitude(obs_set, parameters):
             if parameters['use_v1_pointing']:
                 # here the reference point has to be on the V1 axis
                 reference_point = np.array([[0., 0.], [0., 0.]])
-            lazAC, index_masked_stars = pystortion.distortion.fit_distortion_general(mp, k,
-                                                                                     eliminate_omc_outliers_iteratively=
-                                                                                     parameters[
-                                                                                         'eliminate_omc_outliers_iteratively'],
-                                                                                     outlier_rejection_level_sigma=
-                                                                                     parameters[
-                                                                                         'outlier_rejection_level_sigma'],
-                                                                                     reference_frame_number=parameters[
-                                                                                         'reference_frame_number'],
-                                                                                     evaluation_frame_number=parameters[
-                                                                                         'evaluation_frame_number'],
-                                                                                     reference_point=reference_point,
-                                                                                     verbose=False)
+
+            lazAC, index_masked_stars = \
+                pystortion.distortion.fit_distortion_general(mp, k,
+                                                             eliminate_omc_outliers_iteratively=
+                                                               parameters['eliminate_omc_outliers_iteratively'],
+                                                             outlier_rejection_level_sigma=
+                                                               parameters['outlier_rejection_level_sigma'],
+                                                             reference_frame_number=
+                                                               parameters['reference_frame_number'],
+                                                             evaluation_frame_number=
+                                                               parameters['evaluation_frame_number'],
+                                                             reference_point=reference_point,
+                                                             verbose=False)
             # verbose=parameters['verbose'])
 
-            lazAC.human_readable_solution_parameters = pystortion.distortion.compute_rot_scale_skew(lazAC, i=parameters['evaluation_frame_number'])
+            lazAC.human_readable_solution_parameters = \
+                pystortion.distortion.compute_rot_scale_skew(
+                    lazAC, i=parameters['evaluation_frame_number'])
 
             current_rotation_deg, current_shift_in_X, current_shift_in_Y, converged, \
                 sigma_current_rotation_deg, sigma_current_shift_in_X, sigma_current_shift_in_Y = \
@@ -997,11 +999,15 @@ def determine_attitude(obs_set, parameters):
 
             correction_V3IdlYAngle_deg = attenuation_factor * current_rotation_deg
 
-            ra_attitude_deg_intermediate, dec_attitude_deg_intermediate = pysiaf.rotations.pointing(attitude,
-                V2Ref + attenuation_factor*current_shift_in_X, V3Ref + attenuation_factor*current_shift_in_Y)
+            ra_attitude_deg_intermediate, dec_attitude_deg_intermediate = \
+                pysiaf.rotations.pointing(attitude,
+                                          V2Ref + attenuation_factor*current_shift_in_X,
+                                          V3Ref + attenuation_factor*current_shift_in_Y)
 
-            correction_ra_attitude_deg  = attenuation_factor * (ra_attitude_deg_intermediate - ra_attitude_deg)
-            correction_dec_attitude_deg = attenuation_factor * (dec_attitude_deg_intermediate - dec_attitude_deg)
+            correction_ra_attitude_deg  = \
+                attenuation_factor * (ra_attitude_deg_intermediate - ra_attitude_deg)
+            correction_dec_attitude_deg = \
+                attenuation_factor * (dec_attitude_deg_intermediate - dec_attitude_deg)
 
             if verbose:
                 print('correction_V3IdlYAngle_deg = {}'.format(correction_V3IdlYAngle_deg))

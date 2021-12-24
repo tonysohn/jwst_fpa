@@ -7,7 +7,7 @@ import numpy as np
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'NIRISS/NIS-013/FGS1-NIRISS_alignment/')
+data_dir = os.path.join(home_dir, 'OTE-10/FGS1-NIRCam')
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
@@ -20,7 +20,7 @@ attitude_defining_apertures                    = ['FGS1_FULL']
 calibration_alignment_reference_aperture_names = ['FGS1_FULL']
 calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
 apply_fpa_calibration_array                    = [False]
-apertures_to_calibrate                         = ['NIS_CEN']
+apertures_to_calibrate                         = ['NRCA3_FULL']
 ##################################################################
 
 save_plot = True
