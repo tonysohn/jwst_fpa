@@ -275,7 +275,13 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']<fwhm_lo))
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']>fwhm_hi))
 
-
+            ###
+            ### TEST FOR NIRISS: remove all sources with posiitons near the corner of pixels
+            ###
+            if 0:
+                if instrument_name == 'NIRISS':
+                    iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['xcentroid'] - np.round(iraf_extracted_sources['xcentroid']))>0.3))
+                    iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['ycentroid'] - np.round(iraf_extracted_sources['ycentroid']))>0.3))
 
             # Now improve the positions by re-running centroiding algorithm if necessary.
             # NOTE: For now, re-centroiding will be turned off
@@ -305,8 +311,6 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             #print('Number of sources without saturated or bad pixels: ', len(goodx))
             #print(' ')
             #coords = np.column_stack((goodx,goody))
-
-
 
             print('Number of extracted sources after filtering: {} sources'.format(len(iraf_extracted_sources)))
 
