@@ -123,6 +123,9 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         header_info['INSTRUME'] = header_info['instrument_name']
         header_info['SIAFAPER'] = header_info['aperture_name']
 
+        instrument_name = getattr(im.meta.instrument, 'name')
+        instrument_detector = getattr(im.meta.instrument, 'detector')
+
         # temporary solution, this should come from populated aperture attributes
         #if header_info['subarray_name'] == 'FULL':
         #    master_apertures = pysiaf.read.read_siaf_detector_layout()
@@ -170,9 +173,6 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         mask_extreme_slope_values = False
         parameters['maximum_slope_value'] = 1000.
 
-        # parameters['use_DAOStarFinder_for_epsf'] = False
-        #parameters['use_DAOStarFinder_for_epsf'] = use_DAOStarFinder_for_epsf
-
         # Check if extracted_sources_file exists, or overwrite_source_extraction is set to True
         if (not os.path.isfile(extracted_sources_file)) or (overwrite_source_extraction):
             data = copy.deepcopy(im.data)
@@ -193,51 +193,79 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             bgrms = bkgrms(data_cps)
             bgavg = mmm_bkg(data_cps)
 
-            # Default criterions
-            sigfactor = 50
+            # Default parameters that generally works for NIRCam/NIRISS images
+            sigma_factor = 50
             round_lo, round_hi = 0.0, 0.6
             sharp_lo, sharp_hi = 0.3, 1.4
             fwhm_lo, fwhm_hi   = 1.0, 2.5
+            fwhm = 2.0
+            minsep_fwhm = 7 # NOTE: minsep_fwhm>5 to reject artifacts around saturated stars
 
+            # if 'sharp_lo' in parameters:
+            #    sharp_lo = parameters['sharp_lo']
+
+            ###
+            ### TBD1: Relocate params below to config parts/files
+            ###
             # Use different criteria for selecting good stars
             if parameters['nominalpsf']:
                 # If using Nominal PSF models
-                if 'nis' in f:
+                if instrument_name == 'NIRISS':
                     #fwhm_lo, fwhm_hi = 1.0, 2.0
                     sharp_lo, sharp_hi = 0.6, 1.4
-                elif 'g1' or 'g2' in f:
+                elif instrument_name == 'FGS':
                     #fwhm_lo, fwhm_hi = 1.0, 1.4
                     sharp_lo, sharp_hi = 0.6, 1.4
-                elif 'nrca' or 'nrcb' in f:
+                elif instrument_name == 'NIRCAM':
                     sharp_lo, sharp_hi = 0.6, 1.4
-                elif 'miri' in f:
-                    sharl_lo, sharp_hi = 0.8, 1.0
+                elif instrument_name == 'MIRI':
+                    sharp_lo, sharp_hi = 0.8, 1.0
                     fwhm_lo, fwhm_hi   = 1.5, 2.2
-                    sigfactor          = 3
+                    sigma_factor       = 3
+                elif instrument_name == 'NIRSPEC':
+                    sharp_lo, sharp_hi = 0.6, 0.8
+                    round_lo, round_hi = 0.0, 0.3
+                    fwhm_lo, fwhm_hi   = 1.0, 1.75
             else:
-                # If using Commissioning (coarsely-phased) PSF models
-                if 'nis' in f:
+                # If using Commissioning (non-phased) PSF models
+                if instrument_name == 'NIRISS':
                     sharp_lo, sharp_hi = 0.6, 1.4
                     fwhm_lo, fwhm_hi   = 1.4, 2.4
-                elif 'g1' or 'g2' in f:
+                elif instrument_name == 'FGS':
                     sharp_lo, sharp_hi = 0.8, 1.4
-                elif 'nrca' or 'nrcb' in f:
+                elif instrument_name == 'NIRCAM':
                     sharp_lo, sharp_hi = 0.8, 1.4
-                elif 'miri' in f:
+                elif instrument_name == 'MIRI':
                     sharl_lo, sharp_hi = 0.8, 1.0
                     fwhm_lo, fwhm_hi   = 1.5, 2.2
-                    sigfactor          = 3
+                    sigma_factor       = 3
+                elif instrument_name == 'NIRSPEC':
+                    sharp_lo, sharp_hi = 0.6, 0.8
+                    round_lo, round_hi = 0.0, 0.3
+                    fwhm_lo, fwhm_hi   = 1.0, 1.75
 
 
-            # Use IRAFStarFinder for detecting stars
-            # NOTE: minsep_fwhm > 5 is required for rejecting false sources around saturated stars
-            iraffind = IRAFStarFinder(threshold=sigfactor*bgrms+bgavg, fwhm=2.0,
-                                      minsep_fwhm=7,
+            # Use IRAFStarFinder for source detection
+            iraffind = IRAFStarFinder(threshold=sigma_factor*bgrms+bgavg,
+                                      fwhm=fwhm, minsep_fwhm=minsep_fwhm,
                                       roundlo=round_lo, roundhi=round_hi,
                                       sharplo=sharp_lo, sharphi=sharp_hi)
-            iraf_extracted_sources = iraffind(data_cps)
 
-            # Remove sources based on flux percentile (too faint or saturated sources)
+            # Create default mask with all False values
+            datamask = np.zeros(data_cps.shape, dtype=bool) # This creates an array with all False
+
+            # Mask the left (for NRS1) and right regions (for NRS2) for NIRSpec
+            if instrument_detector == 'NRS1':
+                datamask[:, :1023] = True   # Mask everything on the left side
+            elif instrument_detector == 'NRS2':
+                datamask[:, 1024:] = True   # Mask everything on the right side
+
+            iraf_extracted_sources = iraffind(data_cps, mask=datamask)
+
+            # Perform some basic filtering
+
+            # Remove sources based on flux percentile
+            # 10-99% works well for filtering out too faint or saturated sources
             flux_min = np.percentile(iraf_extracted_sources['flux'], 10)
             flux_max = np.percentile(iraf_extracted_sources['flux'], 99)
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['flux']<flux_min))
@@ -246,6 +274,39 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             # Also remove sources based on fwhm
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']<fwhm_lo))
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']>fwhm_hi))
+
+
+
+            # Now improve the positions by re-running centroiding algorithm if necessary.
+            # NOTE: For now, re-centroiding will be turned off
+
+            ###
+            ### TBD2: Add re-centroiding algorithm adopted from Paul here
+            ###
+            #xarr = sources_masked['xcentroid']
+            #yarr = sources_masked['ycentroid']
+            #newx, newy = centroid_sources(data_cps, xarr, yarr, box_size=5, centroid_func=centroid_2dg)
+            #coords = np.column_stack((newx, newy))
+            #srcaper = CircularAnnulus(coords, r_in=1, r_out=3)
+            #srcaper_masks = srcaper.to_mask(method='center')
+            #satflag = np.zeros((len(newx),),dtype=int)
+            #i = 0
+            #for mask in srcaper_masks:
+            #    srcaper_dq = mask.multiply(dqarr)
+            #    srcaper_dq_1d = srcaper_dq[mask.data>0]
+            #    badpix = np.logical_and(srcaper_dq_1d>2, srcaper_dq_1d<7)
+            #    reallybad = np.where(srcaper_dq_1d==1)
+            #    if ((len(srcaper_dq_1d[badpix]) > 1) or (len(srcaper_dq_1d[reallybad]) > 0)):
+            #        satflag[i] = 1
+            #        i =+1
+            #goodx = newx[np.where(satflag==0)]
+            #goody = newy[np.where(satflag==0)]
+            #print('Number of sources before removing saturated or bad pixels: ', len(xarr))
+            #print('Number of sources without saturated or bad pixels: ', len(goodx))
+            #print(' ')
+            #coords = np.column_stack((goodx,goody))
+
+
 
             print('Number of extracted sources after filtering: {} sources'.format(len(iraf_extracted_sources)))
 

@@ -48,11 +48,12 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion')
+#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion')
+data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
-prdopssoc_version = 'PRDOPSSOC-039'
+#prdopssoc_version = 'PRDOPSSOC-039'
 
 reference_catalog_type = 'hst' # 'hst' for distortion calibrations
 
@@ -225,7 +226,7 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              'use_epsf': use_epsf,
                              'show_extracted_sources': show_extracted_sources,
                              'show_psfsubtracted_image': show_psfsubtracted_image,
-                             'save_plot': save_plot}
+                             'save_plot': save_plot
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : use_DAOStarFinder_for_epsf,
                              #'use_weights_for_epsf': False,
@@ -236,6 +237,7 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              #'final_extraction_niters': 5}
                              # 'use_epsf': False,
                              # 'show_extracted_sources': False}
+                             }
 
     im = prepare_jwst_fpa_data.jwst_camera_fpa_data(data_dir, camera_pattern,
                                                     standardized_data_dir,
@@ -561,10 +563,17 @@ for obs in obs_collection.observations:
                 setattr(new_aperture, attribute, getattr(siaf_aper, attribute))
 
             # get the SIAF version used in the simulations
-            ref_siaf = pysiaf.siaf.Siaf(instrument_name,
-                                        basepath=os.path.join(_DATA_ROOT, 'JWST',
-                                                              prdopssoc_version,
-                                                              'SIAFXML', 'SIAFXML'))
+            try:
+                ref_siaf = pysiaf.siaf.Siaf(
+                               instrument_name,
+                               basepath=os.path.join(_DATA_ROOT,
+                                                     'JWST',
+                                                     prdopssoc_version,
+                                                     'SIAFXML',
+                                                     'SIAFXML'))
+            except NameError:
+                ref_siaf = pysiaf.siaf.Siaf(instrument_name)
+
             # SIAF transformation
             x_idl_siaf, y_idl_siaf = ref_siaf[aperture_name].sci_to_idl(
                     obs.star_catalog_matched['x_SCI'].data,
