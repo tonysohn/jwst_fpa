@@ -27,7 +27,7 @@ from photutils import IRAFStarFinder, DAOStarFinder
 from photutils import CircularAperture, EPSFBuilder
 from photutils.psf import DAOGroup, extract_stars, IterativelySubtractedPSFPhotometry
 from photutils.background import MMMBackground, MADStdBackgroundRMS
-from photutils.centroids import centroid_2dg, centroid_com
+from photutils.centroids import centroid_sources, centroid_2dg
 
 import pysiaf
 import pysiaf.utils.rotations as rotations
@@ -275,42 +275,22 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']<fwhm_lo))
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']>fwhm_hi))
 
-            ###
-            ### TEST FOR NIRISS: remove all sources with posiitons near the corner of pixels
-            ###
-            if 0:
-                if instrument_name == 'NIRISS':
-                    iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['xcentroid'] - np.round(iraf_extracted_sources['xcentroid']))>0.3))
-                    iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['ycentroid'] - np.round(iraf_extracted_sources['ycentroid']))>0.3))
 
-            # Now improve the positions by re-running centroiding algorithm if necessary.
-            # NOTE: For now, re-centroiding will be turned off
+            # For NIRISS, re-centroid by fitting 2-d Gaussian for NIRISS
+            if instrument_name == 'NIRISS':
+                x_2dg, y_2dg = centroid_sources(data_cps,
+                                                iraf_extracted_sources['xcentroid'],
+                                                iraf_extracted_sources['ycentroid'],
+                                                box_size=9,
+                                                centroid_func=centroid_2dg)
 
-            ###
-            ### TBD2: Add re-centroiding algorithm adopted from Paul here
-            ###
-            #xarr = sources_masked['xcentroid']
-            #yarr = sources_masked['ycentroid']
-            #newx, newy = centroid_sources(data_cps, xarr, yarr, box_size=5, centroid_func=centroid_2dg)
-            #coords = np.column_stack((newx, newy))
-            #srcaper = CircularAnnulus(coords, r_in=1, r_out=3)
-            #srcaper_masks = srcaper.to_mask(method='center')
-            #satflag = np.zeros((len(newx),),dtype=int)
-            #i = 0
-            #for mask in srcaper_masks:
-            #    srcaper_dq = mask.multiply(dqarr)
-            #    srcaper_dq_1d = srcaper_dq[mask.data>0]
-            #    badpix = np.logical_and(srcaper_dq_1d>2, srcaper_dq_1d<7)
-            #    reallybad = np.where(srcaper_dq_1d==1)
-            #    if ((len(srcaper_dq_1d[badpix]) > 1) or (len(srcaper_dq_1d[reallybad]) > 0)):
-            #        satflag[i] = 1
-            #        i =+1
-            #goodx = newx[np.where(satflag==0)]
-            #goody = newy[np.where(satflag==0)]
-            #print('Number of sources before removing saturated or bad pixels: ', len(xarr))
-            #print('Number of sources without saturated or bad pixels: ', len(goodx))
-            #print(' ')
-            #coords = np.column_stack((goodx,goody))
+                iraf_extracted_sources['xcentroid'] = x_2dg
+                iraf_extracted_sources['ycentroid'] = y_2dg
+
+                iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['xcentroid'] - \
+                                                   np.round(iraf_extracted_sources['xcentroid'])) > 0.4))
+                iraf_extracted_sources.remove_rows(np.where(abs(iraf_extracted_sources['ycentroid'] - \
+                                                   np.round(iraf_extracted_sources['ycentroid'])) > 0.4))
 
             print('Number of extracted sources after filtering: {} sources'.format(len(iraf_extracted_sources)))
 
@@ -453,7 +433,8 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
         if len(extracted_sources) > 0:
             # Cal images are in DMS coordinates which correspond to the SIAF Science (SCI) frame
-            extracted_sources['x_SCI'], extracted_sources['y_SCI'] = extracted_sources['xcentroid'], extracted_sources['ycentroid']
+            extracted_sources['x_SCI'], extracted_sources['y_SCI'] = \
+                extracted_sources['xcentroid'], extracted_sources['ycentroid']
 
             # For now, astrometric uncertainty defaults to 5 mas for each source.
             extracted_sources['sigma_x_mas'] = np.ones(len(extracted_sources)) * astrometry_uncertainty_mas

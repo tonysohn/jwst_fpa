@@ -48,8 +48,8 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion')
-data_dir = os.path.join(home_dir,'NIRISS/DISTORTION_TEST2')
+data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion/NRCB4')
+#data_dir = os.path.join(home_dir,'NIRISS/DISTORTION_TEST')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
