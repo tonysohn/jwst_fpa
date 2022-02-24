@@ -48,8 +48,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-#data_dir = os.path.join(home_dir,'TEL/OTE-10/NIRCam_distortion')
-data_dir = os.path.join(home_dir,'NIRCam/NIRCam_distortion')
+data_dir = os.path.join(home_dir,'JWST/Flight/OTE-10/FGS2_distortion')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
@@ -78,8 +77,9 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-nominalpsf = True # False for OTE programs, True for NIS-011b
+nominalpsf = False #
 distortion_coefficients_file = None # 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
+correct_dva = False
 
 ### END OF CONFIGURATION PARAMETERS
 
@@ -133,8 +133,15 @@ def write_distortion_reference_file(coefficients_dict, verbose=False):
 
     distortion_reference_table.add_column(
         Column([aperture_name] * len(distortion_reference_table), name='AperName'), index=0)
-    distortion_reference_file_name = os.path.join(result_dir, 'distortion_coeffs_{}_{}_{}_{}.txt'.format(
-        aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict['name_seed']))
+
+
+    if 'FGS' in aperture_name:
+        distortion_reference_file_name = os.path.join(result_dir, 'distortion_coeffs_{}_{}.txt'.format(
+            aperture_name.lower(), coefficients_dict['name_seed']))
+    else:
+        distortion_reference_file_name = os.path.join(result_dir, 'distortion_coeffs_{}_{}_{}_{}.txt'.format(
+            aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict['name_seed']))
+
     if verbose:
         distortion_reference_table.pprint()
 
@@ -270,7 +277,7 @@ if reference_catalog_type.lower() == 'hawki':
     reference_catalog.rename_column('dec_deg', 'dec')
     reference_catalog['j_magnitude'] = reference_catalog['j_2mass_extrapolated']
 elif reference_catalog_type.lower() == 'hst':
-    reference_catalog = hst.hst_catalog(decimal_year_of_observation=2022.0)
+    reference_catalog = hst.hst_catalog(decimal_year_of_observation=2022.15)
     reference_catalog.rename_column('ra_deg', 'ra')
     reference_catalog.rename_column('dec_deg', 'dec')
     reference_catalog['j_magnitude'] = reference_catalog['j_mag_vega']
@@ -303,6 +310,8 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
     crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
     crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
+    crossmatch_parameters['correct_dva'] = correct_dva
+
     #        crossmatch_parameters['xmatch_radius_camera'] = 0.2 * u.arcsec
     #        crossmatch_parameters['xmatch_radius_fgs'] = None
     #        if run_on_single_niriss_file or run_on_single_fgs_file:
@@ -491,8 +500,12 @@ for obs in obs_collection.observations:
         (CR, DR) = pysiaf.polynomial.add_rotation(CR, DR, -1*linear_parameters_inverse['rotation_y'])
 
         poly_coeffs = pysiaf.utils.tools.convert_polynomial_coefficients(A, B, C, D)
-        siaf_params_file = os.path.join(result_dir, 'siaf_params_{}_{}_{}_{}.txt'.format(
-         aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict_prep['name_seed']))
+        if 'FGS' in aperture_name:
+            siaf_params_file = os.path.join(result_dir, 'siaf_params_{}_{}.txt'.format(
+                aperture_name.lower(), coefficients_dict_prep['name_seed']))
+        else:
+            siaf_params_file = os.path.join(result_dir, 'siaf_params_{}_{}_{}_{}.txt'.format(
+                aperture_name.lower(), filter_name.lower(), pupil_name.lower(), coefficients_dict_prep['name_seed']))
         with open(siaf_params_file, 'w') as f:
             print('V2Ref       =', poly_coeffs[6], file=f)
             print('V3Ref       =', poly_coeffs[7], file=f)

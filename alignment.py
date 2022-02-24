@@ -1049,7 +1049,7 @@ def determine_attitude(obs_set, parameters):
             attitude = pysiaf.rotations.attitude(V2Ref, V3Ref, ra_attitude_deg, dec_attitude_deg, pa_attitude_deg)
 
 ######## TOHUGHTS SO FAR: So far, attitdue has been updated using distortion model, and this changes is negligible.
-######## This means, the hige V3 offset is happening somewhere beyond this determine_attitude routine, OR!
+######## This means, the huge V3 offset is happening somewhere beyond this determine_attitude routine, OR!
 ######## This routine could still be a problem for the other apertures' iterations
 
     attitude_dict = {}

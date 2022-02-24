@@ -7,21 +7,25 @@ import numpy as np
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'OTE-10/FGS1-NIRCam')
+data_dir = os.path.join(home_dir, 'JWST/Flight/OTE-10/FGS1-NIRCam/NRCB5/')
+##################################################################
+apertures_to_calibrate                         = ['NRCB5_FULL']
+##
+alignment_reference_apertures                  = ['FGS1_FULL']
+attitude_defining_apertures                    = ['FGS1_FULL']
+calibration_alignment_reference_aperture_names = ['FGS1_FULL']
+calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
+apply_fpa_calibration_array                    = [False]
+##################################################################
+
+correct_dva = False
+#sc_velocity = [-13.413720, -25.057451, -10.677287]
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
 distortion_coefficients_file = None
 #distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 
-##################################################################
-alignment_reference_apertures                  = ['FGS1_FULL']
-attitude_defining_apertures                    = ['FGS1_FULL']
-calibration_alignment_reference_aperture_names = ['FGS1_FULL']
-calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
-apply_fpa_calibration_array                    = [False]
-apertures_to_calibrate                         = ['NRCA3_FULL']
-##################################################################
 
 save_plot = True
 verbose = True
@@ -32,7 +36,7 @@ visit_groups = [0] ### TBD: This is probably used for HST multi-epoch analysis o
 k = 8 # or 6 or 4
 
 # Global distortion fit for attitude determination
-k_attitude_determination = 4 # or 8
+k_attitude_determination = 4
 
 generate_standardized_fpa_data     = True
 overwrite_source_extraction        = False
@@ -53,8 +57,6 @@ show_attitude_evolution = False
 
 # This is used for Monte-Carlo type simulations, but just keep it to [0] for direct solutions.
 random_realisations = [0] # for e.g., 9 random simulations, set this to "np.arange(9)"
-
-correct_dva = False # or True: Applies only to HST camera apertures for now. Later for JWST.
 
 # Rotation parameter that will be minimized during the iterative aperture correction
 rotation_name = 'Rotation in Y' # or 'Global Rotation'

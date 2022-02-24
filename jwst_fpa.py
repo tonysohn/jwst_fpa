@@ -78,7 +78,6 @@ overwrite_alignment_results_pickle = jwst_fpa_config.overwrite_alignment_results
 make_summary_plots = jwst_fpa_config.make_summary_plots
 show_camera_evolution = jwst_fpa_config.show_camera_evolution
 show_attitude_evolution = jwst_fpa_config.show_attitude_evolution
-correct_dva = jwst_fpa_config.correct_dva
 show_summary_results = jwst_fpa_config.show_summary_results
 
 rotation_name = jwst_fpa_config.rotation_name
@@ -97,6 +96,10 @@ restrict_to_sets_that_include_aperture_names = jwst_fpa_config.restrict_to_sets_
 
 applied_calibration_file = jwst_fpa_config.applied_calibration_file
 write_calibration_result_file = jwst_fpa_config.write_calibration_result_file
+
+correct_dva = jwst_fpa_config.correct_dva
+#sc_velocity = jwst_fpa_config.sc_velocity
+
 
 #=============================================================================
 # START OF MAIN PART
@@ -121,9 +124,7 @@ working_dir = os.path.join(data_dir,'focal_plane_calibration')
 standardized_data_dir = os.path.join(working_dir, 'fpa_data')
 result_dir = os.path.join(working_dir, 'results')
 plot_dir = os.path.join(working_dir, 'plots')
-##dva_dir = os.path.join(working_dir, 'dva_data')
 
-#for dir in [standardized_data_dir, plot_dir, result_dir, out_dir, dva_dir]:
 for dir in [standardized_data_dir, result_dir, plot_dir]:
     if os.path.isdir(dir) is False:
         os.makedirs(dir)
@@ -206,6 +207,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
         crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
         crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
+        crossmatch_parameters['correct_dva'] = correct_dva
 #        crossmatch_parameters['camera_names'] = ['NIRISS','FGS1','FGS2']
 #        crossmatch_parameters['xmatch_radius_camera'] = 0.5 * u.arcsec
 #        crossmatch_parameters['xmatch_radius_fgs'] = None
@@ -225,14 +227,6 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         obs_collection.T['align_params'] = 'default'
 
         obs_collection.T['INDEX'] = np.arange(len(obs_collection.T))
-
-        # correct for DVA -- TBD: Should add a dva correction routine
-        if correct_dva:
-            correct_dva_parameters = {}
-            correct_dva_parameters['dva_dir'] = dva_dir
-            correct_dva_parameters['dva_source_dir'] = dva_source_dir
-            correct_dva_parameters['verbose'] = False
-            obs_collection = prepare_jwst_fpa_data.correct_dva(obs_collection, correct_dva_parameters)
 
         pickle.dump(obs_collection, open(obs_collection_pickle_file, "wb"))
 
@@ -749,15 +743,18 @@ else:
 betax = np.arctan2(-AA[1],BB[1])
 
 siaf_table = Table()
-siaf_table['AperName']         = result.T['aperture_name'][1:]
-siaf_table['V3IdlYAngle']      = result.T['calibrated_V3IdlYAngle'][1:] # need to keep the ":" at the end to avoid error
+
+mask = result.T['aperture_name'] == apertures_to_calibrate
+
+siaf_table['AperName']         = result.T[mask]['aperture_name']
+siaf_table['V3IdlYAngle']      = result.T[mask]['calibrated_V3IdlYAngle']
 siaf_table['V3SciXAngle']      = np.degrees(betax) + siaf_table['V3IdlYAngle']
 siaf_table['V3SciYAngle']      = siaf_table['V3IdlYAngle']
-siaf_table['V2Ref']            = result.T['calibrated_V2Ref'][1:]
-siaf_table['V3Ref']            = result.T['calibrated_V3Ref'][1:]
-###siaf_table['diff_V2Ref']       = result.T['delta_calibrated_v2_position_arcsec'][1]
-###siaf_table['diff_V3Ref']       = result.T['delta_calibrated_v3_position_arcsec'][1]
-###siaf_table['diff_V3IdlYAngle'] = result.T['delta_calibrated_v3_angle_arcsec'][1]
+siaf_table['V2Ref']            = result.T[mask]['calibrated_V2Ref']
+siaf_table['V3Ref']            = result.T[mask]['calibrated_V3Ref']
+siaf_table['diff_V3IdlYAngle'] = result.T[mask]['delta_calibrated_v3_angle_arcsec']
+siaf_table['diff_V2Ref']       = result.T[mask]['delta_calibrated_v2_position_arcsec']
+siaf_table['diff_V3Ref']       = result.T[mask]['delta_calibrated_v3_position_arcsec']
 
 # For NIRISS and FGS, add another row that shows OSS parameters
 if 'NIS' or 'FGS' in apertures_to_calibrate:
@@ -767,11 +764,14 @@ if 'NIS' or 'FGS' in apertures_to_calibrate:
     c4 = siaf_table['V3SciYAngle']-180.
     c5 = siaf_table['V2Ref']
     c6 = siaf_table['V3Ref']
-    siaf_table.add_row([c1, c2, c3, c4, c5, c6])
+    c7 = siaf_table['diff_V3IdlYAngle']
+    c8 = siaf_table['diff_V2Ref']
+    c9 = siaf_table['diff_V3Ref']
+    siaf_table.add_row([c1, c2, c3, c4, c5, c6, c7, c8, c9])
 
 username = os.getlogin()
 timestamp = Time.now()
-instrument_name = result.T['instrument_name'][1]
+instrument_name = result.T[mask]['instrument_name']
 
 comments = []
 comments.append('{} alignment parameter reference file for SIAF'.format(instrument_name))
