@@ -58,6 +58,9 @@ working_dir = os.path.join(data_dir, 'distortion_calibration')
 
 reference_catalog_type = 'hst' # 'hst' for distortion calibrations
 
+sigma_crossmatch = 4.0
+sigma_fitting = 3.0
+
 # SOURCE EXTRACTION
 determine_siaf_parameters = True # Keep this to "True" since that'll take out the V2ref, V3ref, V3IdlYAngle
 use_epsf = False # This doesn't work as intended for now, so keep it turned off until method is established
@@ -79,7 +82,7 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-nominalpsf = False #
+nominalpsf = True #
 distortion_coefficients_file = None # 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 correct_dva = False
 
@@ -302,7 +305,7 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['idl_tel_method'] = idl_tel_method
     crossmatch_parameters['reference_catalog'] = reference_catalog
     crossmatch_parameters['xmatch_radius'] = 0.3 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
-    crossmatch_parameters['rejection_level_sigma'] = 2.5 # or 5
+    crossmatch_parameters['rejection_level_sigma'] = sigma_crossmatch # or 5
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
     crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
     crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
@@ -409,7 +412,7 @@ for obs in obs_collection.observations:
     reference_point = np.array([[obs.aperture.XSciRef, obs.aperture.YSciRef], [0., 0.]])
     lazAC, index_masked_stars = distortion.fit_distortion_general(mp, k,
                                             eliminate_omc_outliers_iteratively=1,
-                                            outlier_rejection_level_sigma=3.,
+                                            outlier_rejection_level_sigma=sigma_fitting,
                                             reference_frame_number=reference_frame_number,
                                             evaluation_frame_number=evaluation_frame_number,
                                             reference_point=reference_point,
@@ -424,7 +427,7 @@ for obs in obs_collection.observations:
     reference_point_inverse = np.array([[0., 0.], [obs.aperture.XSciRef, obs.aperture.YSciRef]])
     lazAC_inverse, index_masked_stars_inverse = distortion.fit_distortion_general(mp_inverse, k,
                                             eliminate_omc_outliers_iteratively=1,
-                                            outlier_rejection_level_sigma=3.,
+                                            outlier_rejection_level_sigma=sigma_fitting,
                                             reference_frame_number=reference_frame_number,
                                             evaluation_frame_number=evaluation_frame_number,
                                             reference_point=reference_point_inverse,
