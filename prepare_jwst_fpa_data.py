@@ -120,12 +120,22 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
             header_info['aperture_{}'.format(attribute)] = value
 
+        #for attribute in ''
+
         header_info['INSTRUME'] = header_info['instrument_name']
         header_info['SIAFAPER'] = header_info['aperture_name']
 
         instrument_name = getattr(im.meta.instrument, 'name')
         instrument_detector = getattr(im.meta.instrument, 'detector')
         instrument_filter = getattr(im.meta.instrument, 'filter')
+
+        # DVA correction related
+        va_scale   = getattr(im.meta.velocity_aberration, 'scale_factor')
+        va_ra_ref  = getattr(im.meta.velocity_aberration, 'va_ra_ref')
+        va_dec_ref = getattr(im.meta.velocity_aberration, 'va_dec_ref')
+        scvel_x = getattr(im.meta.ephemeris, 'velocity_x_bary')
+        scvel_y = getattr(im.meta.ephemeris, 'velocity_y_bary')
+        scvel_z = getattr(im.meta.ephemeris, 'velocity_z_bary')
 
         # temporary solution, this should come from populated aperture attributes
         #if header_info['subarray_name'] == 'FULL':
@@ -201,7 +211,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             fwhm_lo, fwhm_hi   = 1.0, 20.0
             fwhm = 2.0
             minsep_fwhm = 7 # NOTE: minsep_fwhm>5 to reject artifacts around saturated stars
-            flux_percent_lo, flux_percent_hi = 10, 99
+            flux_percent_lo, flux_percent_hi = 5, 99
 
             # if 'sharp_lo' in parameters:
             #    sharp_lo = parameters['sharp_lo']
@@ -212,12 +222,29 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             # Use different criteria for selecting good stars
             if parameters['nominalpsf']:
                 # If using Nominal PSF models
+
+################################################################################
                 if instrument_name == 'NIRISS':
                     #fwhm_lo, fwhm_hi = 1.0, 2.0
-                    sharp_lo, sharp_hi = 0.6, 1.4
+                    sigma_factor = 5
+                    sharp_lo, sharp_hi = 0.6, 1.0
+                    round_lo, round_hi = 0.0, 0.3
+                    fwhm_lo, fwhm_hi   = 1.2, 1.6
+                    fwhm = 1.6
+                    flux_percent_lo, flux_percent_hi = 2, 99
+################################################################################
+
+################################################################################
                 elif instrument_name == 'FGS':
-                    #fwhm_lo, fwhm_hi = 1.0, 1.4
-                    sharp_lo, sharp_hi = 0.6, 1.4
+                    sigma_factor = 100
+                    minsep_fwhm = 4
+                    sharp_lo, sharp_hi = 0.3, 1.4
+                    round_lo, round_hi = 0.0, 0.6
+                    flux_percent_lo, flux_percent_hi = 5, 99
+                    fwhm = 1.5
+################################################################################
+
+
                 elif instrument_name == 'NIRCAM':
                     sharp_lo, sharp_hi = 0.6, 1.4
                 elif instrument_name == 'MIRI':
@@ -245,13 +272,13 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
 
                 elif instrument_name == 'FGS':
-                    sigma_factor = 10
-                    minsep_fwhm = 2.5
-                    sharp_lo, sharp_hi = 0.45, 0.7
-                    round_lo, round_hi = 0.0, 0.3
-                    flux_percent_lo, flux_percent_hi = 2, 99
-                    fwhm = 4
-
+                    sigma_factor = 100
+                    minsep_fwhm = 7
+                    sharp_lo, sharp_hi = 0.3, 1.4
+                    round_lo, round_hi = 0.0, 0.6
+                    flux_percent_lo, flux_percent_hi = 10, 99
+                    fwhm = 1.5
+#
 ################################################################################
 ################################################################################
 ################################################################################
@@ -290,6 +317,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
 
             # Use IRAFStarFinder for source detection
+
             iraffind = IRAFStarFinder(threshold=sigma_factor*bgrms+bgavg,
                                       fwhm=fwhm, minsep_fwhm=minsep_fwhm,
                                       roundlo=round_lo, roundhi=round_hi,
@@ -376,6 +404,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 #
                 # Figure - PSF stars
                 #
+                plt.rc('font', family='serif')
                 nrows = 10
                 ncols = 10
                 fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 20), squeeze=True)
@@ -385,6 +414,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                         norm = simple_norm(stars[i], 'log', percent=99.)
                         ax[i].imshow(stars[i], norm=norm, origin='lower', cmap='viridis')
                 plt.title('{} sample stars for epsf'.format(header_info['APERTURE']))
+                plt.tight_layout()
                 if save_plot:
                     figname = os.path.join(extracted_sources_dir,
                               '{}_sample_psfs.pdf'.format(os.path.basename(f).split('.')[0]))
@@ -406,10 +436,12 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 # Figure - ePSF plot
                 #
                 norm_epsf = simple_norm(epsf.data, 'log', percent=99.)
+                plt.rc('font', family='serif')
                 plt.figure()
                 plt.imshow(epsf.data, norm=norm_epsf, origin='lower', cmap='viridis')
                 plt.colorbar()
                 plt.title('{} epsf using {} stars'.format(header_info['APERTURE'], len(stars_tbl)))
+                plt.tight_layout()
                 if save_plot:
                     figname = os.path.join(extracted_sources_dir,
                               '{}_epsf.pdf'.format(os.path.basename(f).split('.')[0]))
@@ -448,6 +480,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 plt.ylabel("Y [pix]")
                 ax2.imshow(diff, norm=norm, cmap='Greys')
                 plt.title('PSF subtracted image for {}'.format(os.path.basename(f)))
+                plt.tight_layout()
                 if save_plot:
                     figname = os.path.join(extracted_sources_dir,
                                            '{}_psfsubtracted_image.pdf'
@@ -465,6 +498,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             apertures = CircularAperture(positions, r=10)
             norm = simple_norm(data_cps, 'sqrt', percent=99.)
 
+            plt.rc('font', family='serif')
             plt.figure(figsize=(12,12))
             plt.xlabel("X [pix]")
             plt.ylabel("Y [pix]")
@@ -656,10 +690,10 @@ def crossmatch_fpa_data(parameters):
             corners = aperture.corners('tel')
             corners_v2 = corners[0]
             corners_v3 = corners[1]
-            selection_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-10)) &
-                                        (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+10)) &
-                                        (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-10)) &
-                                        (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+10)) &
+            selection_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-30)) &
+                                        (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+30)) &
+                                        (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-30)) &
+                                        (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+30)) &
                                         (reference_catalog['j_magnitude'] < 20.5) )[0]   # 20.5 works generally okay, but go lower if fainter stars are present
 
             obs.reference_catalog = reference_catalog[selection_index]
@@ -690,10 +724,10 @@ def crossmatch_fpa_data(parameters):
             # the cross-match using pystortion.distortion.xmatch fails because there are
             # way too many sources in both of the catalogs to ensure a reliable match. [STS]
             #
-            bright_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-10)) &
-                                     (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+10)) &
-                                     (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-10)) &
-                                     (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+10)) &
+            bright_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-30)) &
+                                     (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+30)) &
+                                     (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-30)) &
+                                     (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+30)) &
                                      (reference_catalog['j_magnitude'] < 18.5) )[0] ### 18.5 works for FGS1 and 2, but may need to use 19 for NIRCam?
 
             print('Number of reference catalog stars used for initial offset match:',len(bright_index))
@@ -706,11 +740,16 @@ def crossmatch_fpa_data(parameters):
             obs_cat['TPx'], obs_cat['TPy'] = obs_cat['v2_spherical_arcsec'], obs_cat['v3_spherical_arcsec']
             obs_cat.sort('flux',reverse=True)
             # Adjust the number of sources to be used for initial matching below
-            obs_cat_bright = obs_cat[:149] ##### If I get a "exceeded" error, try changing this number
+            obs_cat_bright = obs_cat[:199] ##### If I get a "exceeded" error, try changing this number
 
-            offset_match = matchutils.TPMatch(searchrad=3, separation=1, use2dhist=True, tolerance=0.6) # --> tolerance=0.5 causes an error for nrcb2
+############
+###
+### THIS WAS REQUIRED FOR THE HUGE OFFSET IN FLIGHT OTE-10 OBS16 (WRONG GUIDE STAR TRACKED)
+###
+#            offset_match = matchutils.TPMatch(searchrad=30, separation=1, use2dhist=True, tolerance=0.6) # --> tolerance=0.5 causes an error for nrcb2
+            offset_match = matchutils.TPMatch(searchrad=5, separation=0.7, use2dhist=True, tolerance=0.6) # --> tolerance=0.5 causes an error for nrcb2
             idx_ref, idx_obs = offset_match(ref_cat, obs_cat_bright)
-
+############
             dv2 = ref_cat['TPx'][idx_ref] - obs_cat_bright['TPx'][idx_obs]
             offset_v2 = sigma_clip(dv2.data, sigma=2.5, maxiters=5, cenfunc='median')
             avg_offset_v2 = 3*np.ma.median(offset_v2) - 2*np.ma.mean(offset_v2)
@@ -719,9 +758,14 @@ def crossmatch_fpa_data(parameters):
             offset_v3 = sigma_clip(dv3.data, sigma=2.5, maxiters=5, cenfunc='median')
             avg_offset_v3 = 3*np.ma.median(offset_v3) - 2*np.ma.mean(offset_v3)
 
+            print('*************************')
+            print(avg_offset_v2, avg_offset_v3)
+            print('*************************')
+
             #
             # Figure - Initial Offsets
             #
+            plt.rc('font', family='serif')
             plt.figure(figsize=(10,6))
             plt.suptitle('Initial offsets between measured vs. catalog-based positions - {}'.format(data_name))
             ax1 = plt.subplot(1,2,1)
@@ -750,6 +794,7 @@ def crossmatch_fpa_data(parameters):
             #
             # Figure - v2v3 crossmatch
             #
+            plt.rc('font', family='serif')
             plt.figure(figsize=(10,10))
             plt.plot(obs.star_catalog['v2_spherical_arcsec']+avg_offset_v2,
                      obs.star_catalog['v3_spherical_arcsec']+avg_offset_v3, 'ko', mfc='w', mew=1,
@@ -769,6 +814,7 @@ def crossmatch_fpa_data(parameters):
             plt.legend(loc='upper right')
             ax = plt.gca()
             # ax.invert_yaxis()
+            plt.tight_layout()
             if save_plot:
                 figure_name = os.path.join(plot_dir, '%s_v2v3_xmatch.pdf' % data_name)
                 plt.savefig(figure_name, transparent=True, bbox_inches='tight', pad_inches=0)

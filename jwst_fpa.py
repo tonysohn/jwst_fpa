@@ -203,7 +203,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['idl_tel_method'] = idl_tel_method
         crossmatch_parameters['reference_catalog'] = reference_catalog
         crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec
-        crossmatch_parameters['rejection_level_sigma'] = 3
+        crossmatch_parameters['rejection_level_sigma'] = 2.5
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
         crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
         crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed

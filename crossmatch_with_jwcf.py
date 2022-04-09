@@ -27,7 +27,7 @@ import prepare_jwst_fpa_data, alignment
 
 def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
                save_plot=True, verbose_figures=False,
-               nominalpsf=False, use_epsf=False):
+               nominalpsf=True, use_epsf=False):
 
     """
     This script runs the extraction and crossmatching codes on a single JWST image
@@ -118,6 +118,7 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
     crossmatch_parameters['distortion_coefficients_file'] = None
     crossmatch_parameters['fpa_file_name'] = fpa_file_name # This ensures multiple FPA_data files are processed
+    crossmatch_parameters['correct_dva'] = False
 
     # Call the crossmatch routine
     observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)
@@ -153,7 +154,11 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
     mname = '{}_magnitude'.format(mhead)
     mname_short = mname.replace('magnitude','mag')
 
-    t2 = obs.reference_catalog_matched['ID','ra','dec',mname,'v2_spherical_arcsec','v3_spherical_arcsec','d_xmatch_mas']
+    if reference_catalog_type.lower() == 'hawki':
+        t2 = obs.reference_catalog_matched['ID','ra','dec',mname,'v2_spherical_arcsec','v3_spherical_arcsec','d_xmatch_mas']
+    else:
+        t2 = obs.reference_catalog_matched['ID','ra','dec',mname,'v2_spherical_arcsec','v3_spherical_arcsec']
+
     t2.rename_column('ID', 'id_ref')
     t2.rename_column('v2_spherical_arcsec','v2_ref')
     t2.rename_column('v3_spherical_arcsec','v3_ref')
@@ -162,11 +167,18 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
     # Paste the two tables (horizontally)
     t_xmatch = hstack([t1, t2])
     # Remove all NaNs in match distance
-    t_xmatch.remove_rows(np.where(np.isnan(t_xmatch['d_xmatch_mas'])))
+    if reference_catalog_type.lower() == 'hawki':
+        t_xmatch.remove_rows(np.where(np.isnan(t_xmatch['d_xmatch_mas'])))
     # Round columns to the specified number of decimals
-    t_xmatch.round({'x_sci':4, 'y_sci':4, 'mag':4, 'v2_obs':4, 'v3_obs':4,
-                    'x_idl':4, 'y_idl':4, 'ra':9, 'dec':9, mname_short:4,
-                    'v2_ref':4, 'v3_ref':4, 'd_xmatch_mas':6})
+
+    if reference_catalog_type.lower() == 'hawki':
+        t_xmatch.round({'x_sci':4, 'y_sci':4, 'mag':4, 'v2_obs':4, 'v3_obs':4,
+                        'x_idl':4, 'y_idl':4, 'ra':9, 'dec':9, mname_short:4,
+                        'v2_ref':4, 'v3_ref':4, 'd_xmatch_mas':6})
+    else:
+        t_xmatch.round({'x_sci':4, 'y_sci':4, 'mag':4, 'v2_obs':4, 'v3_obs':4,
+                        'x_idl':4, 'y_idl':4, 'ra':9, 'dec':9, mname_short:4,
+                        'v2_ref':4, 'v3_ref':4})
 
     outcsvfile = '{}_xmatch.csv'.format(fname_head)
     xmatch_ascii = os.path.join(result_dir, outcsvfile)

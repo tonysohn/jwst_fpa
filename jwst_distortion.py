@@ -36,6 +36,7 @@ from jwcf import hawki, hst
 import pysiaf
 from pysiaf.utils import tools
 from pysiaf.constants import _DATA_ROOT
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 plt.close('all')
 
@@ -48,7 +49,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
-data_dir = os.path.join(home_dir,'JWST/Flight/OTE-10/FGS2_distortion')
+data_dir = os.path.join(home_dir,'JWST/Flight/OTE-11/NIRISS_distortion/TEST')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
 
@@ -77,7 +78,7 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-nominalpsf = False #
+nominalpsf = True #
 distortion_coefficients_file = None # 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 correct_dva = False
 
@@ -261,16 +262,10 @@ apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI']
 apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
                              'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
                              'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL', 'NRS1_FULL', 'NRS2_FULL']
+
 siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict, exact_pattern_match=True)
 
-#siaf_detector_layout = pysiaf.read.read_siaf_detector_layout()
-#apertures_dict={'instrument': siaf_detector_layout['InstrName'].data}
-#master_aperture_names = siaf_detector_layout['AperName'].data
-#apertures_dict['pattern'] = master_aperture_names
-#siaf = pysiaf.siaf.get_jwst_apertures(apertures_dict)
-
 # Prepare the reference catalog
-
 if reference_catalog_type.lower() == 'hawki':
     reference_catalog = hawki.hawki_catalog()
     reference_catalog.rename_column('ra_deg', 'ra')
@@ -284,7 +279,7 @@ elif reference_catalog_type.lower() == 'hst':
 else:
     sys.exit('Unsupported Reference Catalog. Only HawkI and HST catalogs are currently supported.')
 
-# define pickle files
+# define pickle files -- NOTE: These will include all observations
 obs_xmatch_pickle_file = os.path.join(result_dir, 'obs_xmatch.pkl')
 obs_collection_pickle_file = os.path.join(result_dir, 'obs_collection.pkl')
 
@@ -305,17 +300,12 @@ if (not os.path.isfile(obs_collection_pickle_file)) | (overwrite_obs_collection)
     crossmatch_parameters['siaf'] = siaf
     crossmatch_parameters['idl_tel_method'] = idl_tel_method
     crossmatch_parameters['reference_catalog'] = reference_catalog
-    crossmatch_parameters['xmatch_radius'] = 0.1 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
+    crossmatch_parameters['xmatch_radius'] = 0.3 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
     crossmatch_parameters['rejection_level_sigma'] = 2.5 # or 5
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
     crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
     crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
     crossmatch_parameters['correct_dva'] = correct_dva
-
-    #        crossmatch_parameters['xmatch_radius_camera'] = 0.2 * u.arcsec
-    #        crossmatch_parameters['xmatch_radius_fgs'] = None
-    #        if run_on_single_niriss_file or run_on_single_fgs_file:
-    #            crossmatch_parameters['file_pattern'] = '*{}'.format(camera_pattern)
 
     # Call the crossmatch routine
     observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)
@@ -328,6 +318,7 @@ else:
     print('Loaded pickled file {}'.format(obs_collection_pickle_file))
 
 for obs in obs_collection.observations:
+
     file_name = obs.fpa_data.meta['DATAFILE']
 
     instrument_name = obs.fpa_data.meta['INSTRUME']
@@ -343,6 +334,37 @@ for obs in obs_collection.observations:
 
     # compute ideal coordinates
     obs.reference_catalog_matched = alignment.compute_tel_to_idl_in_table(obs.reference_catalog_matched, obs.aperture)
+
+    # Output selected columns in the crossmatched catalog to a human-readable ascii file
+    ss = obs.star_catalog_matched
+    rr = obs.reference_catalog_matched
+    xc1  = ss['id']
+    xc2  = np.around(ss['x_SCI'], decimals=4)
+    xc3  = np.around(ss['y_SCI'], decimals=4)
+    xc4  = np.around(ss['mag']+25, decimals=4)
+    xc5  = np.around(ss['sharpness'], decimals=4)
+    xc6  = np.around(ss['roundness'], decimals=4)
+    xc7  = np.around(ss['fwhm'], decimals=4)
+    xc8  = np.around(ss['v2_spherical_arcsec'], decimals=4)
+    xc9  = np.around(ss['v3_spherical_arcsec'], decimals=4)
+    xc10 = np.around(rr['ra'], decimals=9)
+    xc11 = np.around(rr['dec'], decimals=9)
+    xc12 = rr['ra_error_mas']
+    xc13 = rr['dec_error_mas']
+    xc14 = rr['j_mag_vega']
+    xc15 = np.around(rr['v2_spherical_arcsec'], decimals=4)
+    xc16 = np.around(rr['v3_spherical_arcsec'], decimals=4)
+    xmatch_tbl = Table([ xc1,  xc2,  xc3,  xc4,  xc5,  xc6,  xc7,  xc8,
+                         xc9, xc10, xc11, xc12, xc13, xc14, xc15, xc16 ],
+                         names=('id', 'x', 'y', 'mag',
+                                'sharp', 'round', 'fwhm',
+                                'v2_obs', 'v3_obs',
+                                'ra', 'dec', 'raerr_mas', 'decerr_mas',
+                                'jmag_vega', 'v2_cat', 'v3_cat'))
+    xmatch_tbl_file = os.path.join(result_dir, name_seed+'_xmatch.txt')
+    xmatch_tbl.write(xmatch_tbl_file, overwrite=True,
+                     format='ascii.fixed_width', delimiter = ' ', bookend=False)
+
 
     fieldname_dict = copy.deepcopy(obs.fieldname_dict)
     fieldname_dict['reference_catalog']['position_1'] = 'x_idl_arcsec'
@@ -390,8 +412,11 @@ for obs in obs_collection.observations:
                                             reference_frame_number=reference_frame_number,
                                             evaluation_frame_number=evaluation_frame_number,
                                             reference_point=reference_point,
-                                            verbose=True)
-
+                                            verbose=False)
+    #####
+    ##### TEMP OUTPUT
+    #####
+    #####pickle.dump(lazAC, open(name_seed+'_lazAC.pkl', "wb"))
     # pysiaf.utils.polynomial.polyfit(A, xin, yin, order=)
 
 
@@ -402,7 +427,7 @@ for obs in obs_collection.observations:
                                             reference_frame_number=reference_frame_number,
                                             evaluation_frame_number=evaluation_frame_number,
                                             reference_point=reference_point_inverse,
-                                            verbose=True)
+                                            verbose=False)
 
 
     scale_factor_for_residuals = 1000.
@@ -423,26 +448,105 @@ for obs in obs_collection.observations:
     xy_unit = u.arcsec
     xy_unitStr = xy_unit.to_string()
     xy_scale = 1.
-    lazAC.plotResiduals(evaluation_frame_number, plot_dir, name_seed,
-                    omc_scale=scale_factor_for_residuals, save_plot=1,
-                    omc_unit='mas', xy_scale=xy_scale, xy_unit=xy_unitStr)
-    if 0:
-        lazAC.plotResults(evaluation_frame_number, plot_dir, name_seed, saveplot=1,
-                          xy_scale=xy_scale, xy_unit=xy_unitStr)
-        lazAC.plotDistortion(evaluation_frame_number, plot_dir, name_seed,
-                             reference_point[reference_frame_number], save_plot=1,
-                             xy_scale=xy_scale, xy_unit=xy_unitStr, detailed_plot_k=k)
-        # lazAC.plotDistortion(evaluation_frame_number,outDir,name_seed_2,
-        # referencePointForProjection_Pix,save_plot=save_plot,xy_scale=xy_scale,
-        # xy_unit=xy_unitStr)
-        # lazAC.plotLinearTerms(evaluation_frame_number,outDir,name_seed_2,
-        # referencePointForProjection_Pix,save_plot=save_plot,xy_scale=xy_scale,
-        # xy_unit=xy_unitStr)
+
+    ### PLOTS replaced with improved version, so below are commented out.
+    #lazAC.plotResiduals(evaluation_frame_number, plot_dir, name_seed,
+    #                omc_scale=scale_factor_for_residuals, save_plot=1,
+    #                omc_unit='mas', xy_scale=xy_scale, xy_unit=xy_unitStr)
+
+    #
+    # Generate residual plots in my style
+    #
+    ii = evaluation_frame_number ## This has to be "1", not "0" for the residuals to make sense
+    la = copy.deepcopy(lazAC)
+    x  = la.p[ii, :, 0]
+    y  = la.p[ii, :, 1]
+    id = la.p[ii, :, 4]
+    resx = la.resx[ii].residuals
+    resy = la.resy[ii].residuals
+    rx = resx*1000.
+    ry = resy*1000.
+
+    # Residual cloud plot
+    plt.rc('font', family='serif')
+    fig, ax = plt.subplots(figsize=(10, 10))
+    #
+    # The scatter plot:
+    ax.plot(rx, ry, 'k.', ms=4)
+    ax.set_xlabel('$\Delta x$ (mas)', fontsize=15)
+    ax.set_ylabel('$\Delta y$ (mas)', fontsize=15)
+    #
+    # Set aspect of the main axes.
+    ax.set_aspect(1.)
+    #
+    # Create new axes on the right and on the top of the current axes
+    divider = make_axes_locatable(ax)
+    # Below height and pad are in inches
+    ax_histx = divider.append_axes("top"  , 1.5, pad=0.1, sharex=ax)
+    ax_histy = divider.append_axes("right", 1.5, pad=0.1, sharey=ax)
+    #
+    # Make some labels invisible
+    ax_histx.xaxis.set_tick_params(labelbottom=False)
+    ax_histy.yaxis.set_tick_params(labelleft=False)
+    #
+    ax_histx.hist(rx, bins=25, alpha=0.7, histtype='bar', edgecolor='black', linewidth=1.2)
+    ax_histy.hist(ry, bins=25, alpha=0.7, histtype='bar', edgecolor='black', linewidth=1.2, orientation='horizontal')
+    #
+    fig.tight_layout()
+    #
+    if save_plot:
+        figname = os.path.join(plot_dir,name_seed+'_rms.pdf')
+        plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
+    if verbose_figures:
+        plt.show()
+
+    #
+    # Residual trend plots
+    #
+    plt.rc('font', family='serif')
+    fig, axs = plt.subplots(nrows=2, ncols=2)
+    fig.set_figheight(6)
+    fig.set_figwidth(15)
+    #
+    axs[0,0].plot(x, rx, 'k.', ms=4)
+    axs[0,0].set(ylabel='$\Delta x$ (mas)')
+    axs[0,0].axhline(0, c='r', lw=2)
+    #
+    axs[1,0].plot(x, ry, 'k.', ms=4)
+    axs[1,0].set(ylabel='$\Delta y$ (mas)')
+    axs[1,0].set(xlabel='$x_{idl}$ (arcsec)')
+    axs[1,0].axhline(0, c='r', lw=2)
+    #
+    axs[0,1].plot(y, rx, 'k.', ms=4)
+    axs[0,1].axhline(0, c='r', lw=2)
+    #
+    axs[1,1].plot(y, ry, 'k.', ms=4)
+    axs[1,1].set(xlabel='$y_{idl}$ (arcsec)')
+    axs[1,1].axhline(0, c='r', lw=2)
+    #
+    fig.tight_layout()
+    #
+    if save_plot:
+        figname = os.path.join(plot_dir,name_seed+'_rmstrend.pdf')
+        plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
+    if verbose_figures:
+        plt.show()
+
+    #fig, axs = plt.subplots(4)
+    # xy = np.ma.masked_array(self.p[ii, plot_index, np.array([ix, iy])[:, np.newaxis]], mask=[self.p[ii, plot_index, np.array([ix, iy])[:, np.newaxis]] == 0]) * xy_scale
+    #id = lazAC.p[ii, :, 4]
+    #x = lazAC.p[ii, :, 0]
+    #y = lazAC.p[ii, :, 1]
+    #resx = lazAC.resx[ii].residuals ### residuals are too small? 1e-12????
+    #resy = laxAC.resy[ii].residuals
+    #ix = np.where(lazAC.colNames == 'x')[0][0]
+
+
 
     ############################################################
 
-    print('Number of xmatches between reference catalog and detected sources: %d' % len(
-    obs.star_catalog_matched))
+    print('Number of xmatches between reference catalog and detected sources: %d' \
+          % len(obs.star_catalog_matched))
     print('Polynomial fit residuals: %3.3e native = %3.3f mas' % (
     np.mean(lazAC.rms[1, :]), np.mean(lazAC.rms[1, :] * scale_factor_for_residuals)))
 
@@ -587,6 +691,35 @@ for obs in obs_collection.observations:
             except NameError:
                 ref_siaf = pysiaf.siaf.Siaf(instrument_name)
 
+
+            nx, ny = (25, 25)
+            xsize = ref_siaf[aperture_name].XSciSize
+            ysize = ref_siaf[aperture_name].YSciSize
+            x0    = ref_siaf[aperture_name].XSciRef
+            y0    = ref_siaf[aperture_name].YSciRef
+            xx = np.linspace(1, xsize, nx)
+            yy = np.linspace(1, ysize, ny)
+            xg, yg = np.meshgrid(xx-x0, yy-y0)
+
+            xg_idl_old, yg_idl_old = ref_siaf[aperture_name].sci_to_idl(xg, yg)
+            xg_idl_new, yg_idl_new = new_aperture.sci_to_idl(xg, yg)
+            dx = xg_idl_new - xg_idl_old
+            dy = yg_idl_new - yg_idl_old
+
+            vec = np.sqrt(dx**2+dy**2)
+            vec_max = np.max(vec)
+
+            plt.rc('font', family='serif')
+            plt.figure(figsize=(12,12))
+            plt.xticks(fontsize=12)
+            plt.yticks(fontsize=12)
+
+            plt.xlabel("$x_{idl}$ [arcsec]", fontsize=15)
+            plt.ylabel("$y_{idl}$ [arcsec]", fontsize=15)
+            plt.title("Differences in distortion solutions\n(Max size of vector = {0:6.3f} arcsec)".format(vec_max), pad=20, fontsize=20)
+            plt.plot(xg_idl_old, yg_idl_old, 'bo')
+            plt.quiver(xg_idl_old, yg_idl_old, dx,dy, color='blue')
+
             # SIAF transformation
             x_idl_siaf, y_idl_siaf = ref_siaf[aperture_name].sci_to_idl(
                     obs.star_catalog_matched['x_SCI'].data,
@@ -598,37 +731,37 @@ for obs in obs_collection.observations:
                     obs.star_catalog_matched['y_SCI'].data)
 
             # Plot difference
+            #data = {}
+            #data['reference'] = {'x': x_idl_siaf, 'y': y_idl_siaf}
+            #data['comparison_0'] = {'x': x_idl_check, 'y': y_idl_check}
 
-            data = {}
-            data['reference'] = {'x': x_idl_siaf, 'y': y_idl_siaf}
-            data['comparison_0'] = {'x': x_idl_check, 'y': y_idl_check}
+            #plt.figure(figsize=(10,10), facecolor='w', edgecolor='k')
+            #delta_x = data['comparison_0']['x'] - data['reference']['x']
+            #delta_y = data['comparison_0']['y'] - data['reference']['y']
 
-            plt.figure(figsize=(10,10), facecolor='w', edgecolor='k')
-            delta_x = data['comparison_0']['x'] - data['reference']['x']
-            delta_y = data['comparison_0']['y'] - data['reference']['y']
+            #plt.quiver(data['reference']['x'], data['reference']['y'],
+            #           delta_x, delta_y, angles='xy', scale=None)
+            #offsets = np.linalg.norm([delta_x, delta_y], axis=0)
 
-            plt.quiver(data['reference']['x'], data['reference']['y'],
-                       delta_x, delta_y, angles='xy', scale=None)
-            offsets = np.linalg.norm([delta_x, delta_y], axis=0)
-
-            plt.title('Max difference {:2.3f} mas'.format(np.max(offsets)*1e3))
-            plt.axis('tight')
-            plt.axis('equal')
-            plt.xlabel('X (arcsec)')
-            plt.ylabel('Y (arcsec)')
-            plt.legend(loc='best')
-            ax = plt.gca()
-            ax.invert_yaxis()
+            #plt.title('Max difference {:2.3f} mas'.format(np.max(offsets)*1e3))
+            #plt.axis('tight')
+            #plt.axis('equal')
+            #plt.xlabel('X (arcsec)')
+            #plt.ylabel('Y (arcsec)')
+            #plt.legend(loc='best')
+            #ax = plt.gca()
+            #ax.invert_yaxis()
+            plt.tight_layout()
             if save_plot:
-                figname = os.path.join(plot_dir,'spatial_difference.pdf')
+                figname = os.path.join(plot_dir,name_seed+'_spatial_difference.pdf')
                 plt.savefig(figname, transparent=True, bbox_inches='tight', pad_inches=0)
             if verbose_figures:
                 plt.show()
 
             rms_x = np.std(x_idl_check - x_idl_siaf)
             rms_y = np.std(y_idl_check - y_idl_siaf)
-            print("rms_x =",rms_x)
-            print("rms_y =",rms_y)
+            print("rms_x =",rms_x, "arcsec")
+            print("rms_y =",rms_y, "arcsec")
             #assert rms_x < 0.005 # Mission requirement is <5 mas per axis
             #assert rms_y < 0.005 # Mission requirement is <5 mas per axis
 

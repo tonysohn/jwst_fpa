@@ -7,9 +7,9 @@ import numpy as np
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'JWST/Flight/OTE-10/FGS1-NIRCam/NRCB5/')
+data_dir = os.path.join(home_dir, 'JWST/Flight/OTE-11/FGS1-NIRISS/D4/')
 ##################################################################
-apertures_to_calibrate                         = ['NRCB5_FULL']
+apertures_to_calibrate                         = ['NIS_CEN']
 ##
 alignment_reference_apertures                  = ['FGS1_FULL']
 attitude_defining_apertures                    = ['FGS1_FULL']
@@ -25,7 +25,6 @@ nominalpsf = True
 reference_catalog_type = 'hawki'
 distortion_coefficients_file = None
 #distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
-
 
 save_plot = True
 verbose = True
