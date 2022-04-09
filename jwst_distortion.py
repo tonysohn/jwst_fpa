@@ -49,6 +49,7 @@ distortion_polynomial_degree = {'niriss': 4, 'fgs': 4, 'nircam': 5, 'miri': 4}
 
 home_dir = os.environ['HOME']
 
+#data_dir = os.path.join(home_dir,'JWST/Flight/OTE-11/NIRISS_distortion/TEST')
 data_dir = os.path.join(home_dir,'JWST/Flight/OTE-11/NIRISS_distortion/TEST')
 
 working_dir = os.path.join(data_dir, 'distortion_calibration')
@@ -78,7 +79,7 @@ if inspect_mode is False:
     verbose_figures = False
 
 camera_pattern = '_cal.fits'
-nominalpsf = True #
+nominalpsf = False #
 distortion_coefficients_file = None # 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
 correct_dva = False
 
@@ -663,6 +664,7 @@ for obs in obs_collection.observations:
         distortion_reference_file_name = write_distortion_reference_file(coefficients_dict)
         if 'NIRISS' or 'FGS' in instrument_name:
             distortion_reference_oss_file_name = write_distortion_reference_oss_file(distortion_reference_file_name)
+
         new_aperture = pysiaf.Aperture()
         new_aperture.set_distortion_coefficients_from_file(distortion_reference_file_name)
         linear_parameters = new_aperture.get_polynomial_linear_parameters()
@@ -691,7 +693,6 @@ for obs in obs_collection.observations:
             except NameError:
                 ref_siaf = pysiaf.siaf.Siaf(instrument_name)
 
-
             nx, ny = (25, 25)
             xsize = ref_siaf[aperture_name].XSciSize
             ysize = ref_siaf[aperture_name].YSciSize
@@ -701,8 +702,18 @@ for obs in obs_collection.observations:
             yy = np.linspace(1, ysize, ny)
             xg, yg = np.meshgrid(xx-x0, yy-y0)
 
-            xg_idl_old, yg_idl_old = ref_siaf[aperture_name].sci_to_idl(xg, yg)
-            xg_idl_new, yg_idl_new = new_aperture.sci_to_idl(xg, yg)
+            cx = ref_siaf[aperture_name].get_polynomial_coefficients()['Sci2IdlX']
+            cy = ref_siaf[aperture_name].get_polynomial_coefficients()['Sci2IdlY']
+
+            number_of_coefficients = len(cx)
+            poly_degree = pysiaf.utils.polynomial.polynomial_degree(number_of_coefficients)
+
+            xg_idl_old = pysiaf.utils.polynomial.poly(cx, xg, yg, order=poly_degree)
+            yg_idl_old = pysiaf.utils.polynomial.poly(cy, xg, yg, order=poly_degree)
+
+            xg_idl_new = pysiaf.utils.polynomial.poly(AR, xg, yg, order=poly_degree)
+            yg_idl_new = pysiaf.utils.polynomial.poly(BR, xg, yg, order=poly_degree)
+
             dx = xg_idl_new - xg_idl_old
             dy = yg_idl_new - yg_idl_old
 
@@ -710,9 +721,9 @@ for obs in obs_collection.observations:
             vec_max = np.max(vec)
 
             plt.rc('font', family='serif')
-            plt.figure(figsize=(12,12))
-            plt.xticks(fontsize=12)
-            plt.yticks(fontsize=12)
+            plt.figure(figsize=(10,10))
+            plt.xticks(fontsize=11)
+            plt.yticks(fontsize=11)
 
             plt.xlabel("$x_{idl}$ [arcsec]", fontsize=15)
             plt.ylabel("$y_{idl}$ [arcsec]", fontsize=15)
