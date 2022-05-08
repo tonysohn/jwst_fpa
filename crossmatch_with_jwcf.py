@@ -70,7 +70,8 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
         sys.exit('Unsupported Reference Catalog. Only HawkI and HST catalogs are currently supported.')
 
     extraction_parameters = {}
-    extraction_parameters['nominalpsf'] = False
+    extraction_parameters['nominalpsf'] = True
+    extraction_parameters['use_centroid_2dg'] = False
     extraction_parameters['use_epsf'] = use_epsf
     extraction_parameters['show_extracted_sources'] = verbose_figures
     extraction_parameters['show_psfsubtracted_image'] = verbose_figures
@@ -85,10 +86,12 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
 
     # Load all siaf apertures
     apertures_dict = {}
-    apertures_dict['instrument'] = ['NIRCAM']*10 + ['FGS']*2 + ['NIRISS'] + ['MIRI'] + ['NIRSpec']*2
+    apertures_dict['instrument'] = ['NIRCAM']*11 + ['FGS']*2 + ['NIRISS'] + ['MIRI'] + ['NIRSpec']*2
     apertures_dict['pattern'] = ['NRCA1_FULL', 'NRCA2_FULL', 'NRCA3_FULL', 'NRCA4_FULL', 'NRCA5_FULL',
-                                 'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
-                                 'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL', 'NRS1_FULL', 'NRS2_FULL']
+                             'NRCB1_FULL', 'NRCB2_FULL', 'NRCB3_FULL', 'NRCB4_FULL', 'NRCB5_FULL',
+                             'NRCA5_FULL_MASKLWB',
+                             'FGS1_FULL', 'FGS2_FULL', 'NIS_CEN', 'MIRIM_FULL', 'NRS1_FULL', 'NRS2_FULL']
+
 
     if apername not in apertures_dict['pattern']:
         sys.exit("Aperture not supported.")
@@ -113,12 +116,15 @@ def crossmatch(file_path, reference_catalog_type='hawki', #'hst'
     crossmatch_parameters['siaf'] = siaf
     crossmatch_parameters['idl_tel_method'] = 'spherical'
     crossmatch_parameters['reference_catalog'] = reference_catalog
-    crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
-    crossmatch_parameters['rejection_level_sigma'] = 3 # or 4 or 5?
+    crossmatch_parameters['xmatch_radius'] = 0.4 * u.arcsec # 0.2 arcsec is about 3 pixels in NIRISS or FGS
+    crossmatch_parameters['rejection_level_sigma'] = 4 # or 4 or 5?
     crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
-    crossmatch_parameters['distortion_coefficients_file'] = None
+    crossmatch_parameters['use_default_siaf_distortion'] = False
     crossmatch_parameters['fpa_file_name'] = fpa_file_name # This ensures multiple FPA_data files are processed
     crossmatch_parameters['correct_dva'] = False
+    crossmatch_parameters['sigma_crossmatch'] = 4.0
+    crossmatch_parameters['sigma_fitting'] = 3.0
+    crossmatch_parameters['xmatch_refcat_mag_range'] = [14, 20.5]
 
     # Call the crossmatch routine
     observations = prepare_jwst_fpa_data.crossmatch_fpa_data(crossmatch_parameters)

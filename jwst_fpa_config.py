@@ -7,7 +7,7 @@ import numpy as np
 home_dir = os.environ['HOME']
 local_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = os.path.join(home_dir, 'JWST/Flight/OTE-11/FGS1-NIRISS/D4/')
+data_dir = os.path.join(home_dir, 'JWST/Flight/FGS-11/FGS1-NIRISS/D1')
 ##################################################################
 apertures_to_calibrate                         = ['NIS_CEN']
 ##
@@ -18,13 +18,18 @@ calibration_attitude_defining_aperture_names   = ['FGS1_FULL']
 apply_fpa_calibration_array                    = [False]
 ##################################################################
 
+use_centroid_2dg = False
+
+sigma_crossmatch = 4.0
+sigma_fitting = 2.5
+xmatch_refcat_mag_range = [14, 21.5]
 correct_dva = False
-#sc_velocity = [-13.413720, -25.057451, -10.677287]
 
 nominalpsf = True
 reference_catalog_type = 'hawki'
-distortion_coefficients_file = None
-#distortion_coefficients_file = 'distortion_coeffs_nis_cen_jw01086001001_01101_00021_nis_cal.txt'
+
+# If below is False, must supply the distortion coefficients file in data_dir
+use_default_siaf_distortion = False
 
 save_plot = True
 verbose = True
@@ -39,7 +44,7 @@ k_attitude_determination = 4
 
 generate_standardized_fpa_data     = True
 overwrite_source_extraction        = False
-overwrite_obs_xmatch_pickle        = False
+overwrite_obs_xmatch_pickle        = True
 overwrite_obs_collection           = True
 overwrite_attitude_pickle          = True
 overwrite_alignment_results_pickle = True

@@ -28,8 +28,6 @@ import pystortion
 
 from pystortion.utils import plot_spatial_difference
 
-deg2arcsec = u.deg.to(u.arcsec)
-
 alignment_definition_attributes = {'default': ['V3IdlYAngle', 'V2Ref', 'V3Ref']}
 
 alignment_parameter_mapping = OrderedDict(
@@ -70,15 +68,15 @@ class AlignmentObservation(object):
                 V3IdlYAngle_deg, V2Ref_arcsec, V3Ref_arcsec, method=method, input_coordinates=input_coordinates,
                 output_coordinates='tangent_plane')
 
-            self.star_catalog['v2_tangent_deg'] = self.star_catalog['v2_tangent_arcsec'] / deg2arcsec
-            self.star_catalog['v3_tangent_deg'] = self.star_catalog['v3_tangent_arcsec'] / deg2arcsec
+            self.star_catalog['v2_tangent_deg'] = self.star_catalog['v2_tangent_arcsec'] / 3600.
+            self.star_catalog['v3_tangent_deg'] = self.star_catalog['v3_tangent_arcsec'] / 3600.
 
             # V2V3_tangent_plane -> V2V3_spherical , perform the tangent-plane de-projection of
             # the catalog stars,
             if use_tel_boresight is False:
                 # reference point for projection is the local V2/V3 reference point of the
                 # aperture OR AN EXTERNALLY SET VALUE
-                self.reference_point_deg = np.array([V2Ref_arcsec / deg2arcsec, V3Ref_arcsec / deg2arcsec])
+                self.reference_point_deg = np.array([V2Ref_arcsec / 3600., V3Ref_arcsec / 3600.])
             else:
                 self.reference_point_deg = np.array([0., 0.])
 
@@ -98,8 +96,8 @@ class AlignmentObservation(object):
                 print('ATTENTION: special fix for NIRISS required')
                 self.star_catalog['v2_spherical_deg'] -= 360.
 
-            self.star_catalog['v2_spherical_arcsec'] = self.star_catalog['v2_spherical_deg'] * deg2arcsec
-            self.star_catalog['v3_spherical_arcsec'] = self.star_catalog['v3_spherical_deg'] * deg2arcsec
+            self.star_catalog['v2_spherical_arcsec'] = self.star_catalog['v2_spherical_deg'] * 3600.
+            self.star_catalog['v3_spherical_arcsec'] = self.star_catalog['v3_spherical_deg'] * 3600.
 
         elif method == 'spherical_transformation':
             table = copy.deepcopy(self.star_catalog)
@@ -362,15 +360,15 @@ def compute_idl_to_tel_in_table(input_table, aperture, V3IdlYAngle_deg=None, V2R
                 distortion_correction['coefficients'].plotDistortion(distortion_correction['evaluation_frame_number'],
                     '', '', distortion_correction['reference_point_for_projection'], save_plot=0)
 
-        table['v2_tangent_deg'] = table['v2_tangent_arcsec'] / deg2arcsec
-        table['v3_tangent_deg'] = table['v3_tangent_arcsec'] / deg2arcsec
+        table['v2_tangent_deg'] = table['v2_tangent_arcsec'] / 3600.
+        table['v3_tangent_deg'] = table['v3_tangent_arcsec'] / 3600.
 
         # V2V3_tangent_plane -> V2V3_spherical , perform the tangent-plane de-projection of the
         # catalog stars,
         # reference point for projection is the local V2/V3 reference point of the aperture the
         # tel boresight
         if use_tel_boresight is False:
-            reference_point_deg = np.array([aperture.V2Ref / deg2arcsec, aperture.V3Ref / deg2arcsec])
+            reference_point_deg = np.array([aperture.V2Ref / 3600., aperture.V3Ref / 3600.])
         else:
             reference_point_deg = np.array([0., 0.])
 
@@ -411,8 +409,8 @@ def compute_idl_to_tel_in_table(input_table, aperture, V3IdlYAngle_deg=None, V2R
             table['v2_tangent_arcsec'], table['v3_tangent_arcsec'] = distortion_correction[
                 'coefficients'].apply_polynomial_transformation(distortion_correction['evaluation_frame_number'],
                 x_original, y_original)
-            table['v2_tangent_deg'] = table['v2_tangent_arcsec'] / deg2arcsec
-            table['v3_tangent_deg'] = table['v3_tangent_arcsec'] / deg2arcsec
+            table['v2_tangent_deg'] = table['v2_tangent_arcsec'] / 3600.
+            table['v3_tangent_deg'] = table['v3_tangent_arcsec'] / 3600.
 
         table['v2_spherical_deg'][table['v2_spherical_deg'].data > 180.] -= 360.
 
@@ -422,11 +420,15 @@ def compute_idl_to_tel_in_table(input_table, aperture, V3IdlYAngle_deg=None, V2R
         else:
             input_coordinates = 'polar'
 
-        table['v2_spherical_arcsec'], table['v3_spherical_arcsec'] = aperture.idl_to_tel(np.array(table['x_idl_arcsec']),
-        np.array(table['y_idl_arcsec']), V3IdlYAngle_deg=V3IdlYAngle_deg, V2Ref_arcsec=V2Ref_arcsec,
-        V3Ref_arcsec=V3Ref_arcsec, method=method, input_coordinates=input_coordinates, output_coordinates='polar')
+        table['v2_spherical_arcsec'], table['v3_spherical_arcsec'] = \
+            aperture.idl_to_tel(np.array(table['x_idl_arcsec']),
+                np.array(table['y_idl_arcsec']), V3IdlYAngle_deg=V3IdlYAngle_deg,
+                V2Ref_arcsec=V2Ref_arcsec, V3Ref_arcsec=V3Ref_arcsec,
+                method=method, input_coordinates=input_coordinates,
+                output_coordinates='polar')
 
-        table['v2_spherical_deg'], table['v3_spherical_deg'] = table['v2_spherical_arcsec']/3600., table['v3_spherical_arcsec']/3600.
+        table['v2_spherical_deg'], table['v3_spherical_deg'] = \
+            table['v2_spherical_arcsec']/3600., table['v3_spherical_arcsec']/3600.
 
         if distortion_correction is not None:
             # correct for distortion
@@ -439,8 +441,8 @@ def compute_idl_to_tel_in_table(input_table, aperture, V3IdlYAngle_deg=None, V2R
             table[v2_name], table[v3_name] = distortion_correction['coefficients'].apply_polynomial_transformation(
                 distortion_correction['evaluation_frame_number'], x_original, y_original)
 
-            table['v2_spherical_deg'] = table[v2_name] / deg2arcsec
-            table['v3_spherical_deg'] = table[v3_name] / deg2arcsec
+            table['v2_spherical_deg'] = table[v2_name] / 3600.
+            table['v3_spherical_deg'] = table[v3_name] / 3600.
         table['v2_spherical_deg'][table['v2_spherical_deg'].data > 180.] -= 360.
 
     if 'v2_spherical_arcsec' not in table.colnames:
@@ -460,17 +462,26 @@ def compute_sky_to_tel_in_table(table, attitude, aperture, verbose=False, use_te
     :param verbose:
     :return:
 
+    ####
+    #### Consider adding DVA correction here
+    ####
+
     """
 
     if 'ra' not in table.colnames:
         raise ValueError('sky coordinates not in table or wrong column name')
 
-    table['v2_spherical_arcsec'], table['v3_spherical_arcsec'] = pysiaf.rotations.getv2v3(attitude,
-        np.array(table['ra']), np.array(table['dec']))
+    ###
+    ### TBD: DVA should be applied here.
+    ###
+    table['v2_spherical_arcsec'], table['v3_spherical_arcsec'] = \
+        pysiaf.rotations.getv2v3(attitude,
+                                 np.array(table['ra']),
+                                 np.array(table['dec']))
 
     if use_tel_boresight is False:
         # use V2/V3 REF of aperture as reference point for tangent-plane projection of catalog
-        reference_point_deg = np.array([aperture.V2Ref / deg2arcsec, aperture.V3Ref / deg2arcsec])
+        reference_point_deg = np.array([aperture.V2Ref / 3600., aperture.V3Ref / 3600.])
     else:
         # use boresight, V2=0, V3=0
         reference_point_deg = np.array([0., 0.])
@@ -480,7 +491,7 @@ def compute_sky_to_tel_in_table(table, attitude, aperture, verbose=False, use_te
                                                                            reference_point_deg[1] * u.deg.to(u.arcsec)))
 
     table['v2_tangent_deg'], table['v3_tangent_deg'] = pysiaf.projection.project_to_tangent_plane(
-        np.array(table['v2_spherical_arcsec'] / deg2arcsec), np.array(table['v3_spherical_arcsec'] / deg2arcsec),
+        np.array(table['v2_spherical_arcsec'] / 3600.), np.array(table['v3_spherical_arcsec'] / 3600.),
         reference_point_deg[0], reference_point_deg[1])
 
     if use_tel_boresight is False:
@@ -488,8 +499,8 @@ def compute_sky_to_tel_in_table(table, attitude, aperture, verbose=False, use_te
         table['v2_tangent_deg'] = table['v2_tangent_deg'] + reference_point_deg[0]
         table['v3_tangent_deg'] = table['v3_tangent_deg'] + reference_point_deg[1]
 
-    table['v2_tangent_arcsec'] = table['v2_tangent_deg'] * deg2arcsec
-    table['v3_tangent_arcsec'] = table['v3_tangent_deg'] * deg2arcsec
+    table['v2_tangent_arcsec'] = table['v2_tangent_deg'] * 3600.
+    table['v3_tangent_arcsec'] = table['v3_tangent_deg'] * 3600.
 
     return table
 
@@ -513,19 +524,19 @@ def compute_tel_to_idl_in_table(table, aperture, use_tel_boresight=True, method=
         raise ValueError('Tel coordinates not in table or wrong column name')
 
     if 'v2_spherical_deg' not in table.colnames:
-        table['v2_spherical_deg'] = table['v2_spherical_arcsec'] / deg2arcsec
-        table['v3_spherical_deg'] = table['v3_spherical_arcsec'] / deg2arcsec
+        table['v2_spherical_deg'] = table['v2_spherical_arcsec'] / 3600.
+        table['v3_spherical_deg'] = table['v3_spherical_arcsec'] / 3600.
 
     if use_tel_boresight is False:
-        reference_point_deg = np.array([aperture.V2Ref / deg2arcsec, aperture.V3Ref / deg2arcsec])
+        reference_point_deg = np.array([aperture.V2Ref / 3600., aperture.V3Ref / 3600.])
     else:
         reference_point_deg = np.array([0., 0.])
 
     if method == 'planar_approximation':
         table['v2_tangent_deg'], table['v3_tangent_deg'] = pysiaf.projection.project_to_tangent_plane(np.array(table['v2_spherical_deg']), np.array(table['v3_spherical_deg']), reference_point_deg[0], reference_point_deg[1])
 
-        table['v2_tangent_arcsec'] = table['v2_tangent_deg'] * deg2arcsec
-        table['v3_tangent_arcsec'] = table['v3_tangent_deg'] * deg2arcsec
+        table['v2_tangent_arcsec'] = table['v2_tangent_deg'] * 3600.
+        table['v3_tangent_arcsec'] = table['v3_tangent_deg'] * 3600.
 
         table['x_idl_arcsec'], table['y_idl_arcsec'] = aperture.tel_to_idl(table['v2_tangent_arcsec'],
                                                                            table['v3_tangent_arcsec'],
@@ -1647,25 +1658,6 @@ def evaluate(obs_collection, parameters, make_summary_plots=True, save_plot=True
                         ':3.3f} \t correction amplitude {:3.3f}'.format(
                             attribute, current_difference, corrected_difference,
                             correction_amplitude))
-
-    # visualize effect of attitude error correction (it is almost invisible)
-    if 0:
-        attitude_parameters = [(RA_APER_deg, DEC_APER_deg, PA_V3_deg), (
-            reference_obs.fpa_data.meta['RA_APER'], reference_obs.fpa_data.meta['DEC_APER'],
-            reference_obs.fpa_data.meta['PA_V3'])]
-        reference_ref_cats = []
-        for jj in range(len(attitude_parameters)):
-            RA_APER_deg, DEC_APER_deg, PA_V3_deg = attitude_parameters[jj]
-            # the aperture used as reference, thus used to correct for attitude errors
-            alignment_reference_attitude = pysiaf.utils.rotations.attitude(
-                attitude_defining_aperture.V2Ref,
-                attitude_defining_aperture.V3Ref,
-                RA_APER_deg, DEC_APER_deg, PA_V3_deg)
-            aperture = obs_collection.observations[reference_observation_index][0].aperture
-            reference_ref_cats.append(
-                alignment.compute_sky_to_tel_in_table(reference_reference_catalog[0::10],
-                                                              alignment_reference_attitude,
-                                                              aperture))
 
     if make_summary_plots:
         # make a visualisation plot in V2/V3

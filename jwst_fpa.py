@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 
 import astropy.units as u
 from astropy.time import Time
+from astropy.io import ascii
 from astropy.table import Table, vstack
 
 import pysiaf
@@ -58,15 +59,15 @@ verbose = jwst_fpa_config.verbose
 verbose_figures = jwst_fpa_config.verbose_figures
 visit_groups = jwst_fpa_config.visit_groups
 nominalpsf = jwst_fpa_config.nominalpsf
-#
-# Jun 03, 2021: For now, below is only used to calculate V3SciXAngle.
-# TBD: Make changes to prepare_jwst_fpa_data.py so that it actually uses the
-#      input distortion coefficient file for both FGS and SI.
-#
-distortion_coefficients_file = jwst_fpa_config.distortion_coefficients_file
+
+use_default_siaf_distortion = jwst_fpa_config.use_default_siaf_distortion
 
 k = jwst_fpa_config.k
 k_attitude_determination = jwst_fpa_config.k_attitude_determination
+
+use_centroid_2dg = jwst_fpa_config.use_centroid_2dg
+sigma_crossmatch = jwst_fpa_config.sigma_crossmatch
+sigma_fitting = jwst_fpa_config.sigma_fitting
 
 generate_standardized_fpa_data = jwst_fpa_config.generate_standardized_fpa_data
 overwrite_source_extraction = jwst_fpa_config.overwrite_source_extraction
@@ -99,7 +100,7 @@ write_calibration_result_file = jwst_fpa_config.write_calibration_result_file
 
 correct_dva = jwst_fpa_config.correct_dva
 #sc_velocity = jwst_fpa_config.sc_velocity
-
+xmatch_refcat_mag_range = jwst_fpa_config.xmatch_refcat_mag_range
 
 #=============================================================================
 # START OF MAIN PART
@@ -153,7 +154,8 @@ if (generate_standardized_fpa_data) or (not glob.glob(os.path.join(standardized_
                              'use_epsf': False, # change to True later
                              'show_extracted_sources': True,
                              'show_psfsubtracted_image': True,
-                             'save_plot': save_plot
+                             'save_plot': save_plot,
+                             'use_centroid_2dg': use_centroid_2dg
                              #'naming_tag':  naming_tag
                              #'epsf_psf_size_pix': 20,
                              #'use_DAOStarFinder_for_epsf' : True,
@@ -203,11 +205,12 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         crossmatch_parameters['idl_tel_method'] = idl_tel_method
         crossmatch_parameters['reference_catalog'] = reference_catalog
         crossmatch_parameters['xmatch_radius'] = 0.2 * u.arcsec
-        crossmatch_parameters['rejection_level_sigma'] = 2.5
+        crossmatch_parameters['rejection_level_sigma'] = sigma_crossmatch
         crossmatch_parameters['restrict_analysis_to_these_apertures'] = None
-        crossmatch_parameters['distortion_coefficients_file'] = distortion_coefficients_file
+        crossmatch_parameters['use_default_siaf_distortion'] = use_default_siaf_distortion
         crossmatch_parameters['fpa_file_name'] = None # This ensures multiple FPA_data files are processed
         crossmatch_parameters['correct_dva'] = correct_dva
+        crossmatch_parameters['xmatch_refcat_mag_range'] = xmatch_refcat_mag_range
 #        crossmatch_parameters['camera_names'] = ['NIRISS','FGS1','FGS2']
 #        crossmatch_parameters['xmatch_radius_camera'] = 0.5 * u.arcsec
 #        crossmatch_parameters['xmatch_radius_fgs'] = None
@@ -250,9 +253,9 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
     # PERFORM FOCAL PLANE ALIGNMENT MEASUREMENT
     attitude_determination_parameters = {
         'attitude_defining_aperture_name': attitude_defining_aperture_name,
-        'maximum_number_of_iterations': 50,
+        'maximum_number_of_iterations': 100,
         'attenuation_factor': 0.9,
-        'fractional_threshold_for_iterations': 0.1,
+        'fractional_threshold_for_iterations': 0.01,
         'verbose': True, # or False
         'k': k,
         'k_attitude_determination': k_attitude_determination,
@@ -264,7 +267,7 @@ for iii, alignment_reference_aperture_name in enumerate(alignment_reference_aper
         'out_dir': '',
         'name_seed': 'attitude_error',
         'eliminate_omc_outliers_iteratively': True, # or False - used for final attitude determination fit
-        'outlier_rejection_level_sigma': 2, # or 3 for stricter rejection. Used for final attitude determination fit
+        'outlier_rejection_level_sigma': sigma_fitting, # or 3 for stricter rejection. Used for final attitude determination fit
         'plot_dir': plot_dir,
         'show_final_fit': True, # or False
         'idl_tel_method': idl_tel_method,
@@ -732,14 +735,22 @@ if show_attitude_evolution:
 result = pickle.load(open(result_files[0], 'rb'))
 
 # Quick solution for adding V3SciXAngle to the results -- NOTE: this won't work for multiple calibration apertures
-if distortion_coefficients_file is None or len(distortion_coefficients_file)==0:
-    aper = siaf[apertures_to_calibrate[0]]
+
+aper_name = apertures_to_calibrate[0]
+if use_default_siaf_distortion:
+    aper = siaf[aper_name]
     AA = aper.get_polynomial_coefficients()['Sci2IdlX']
     BB = aper.get_polynomial_coefficients()['Sci2IdlY']
 else:
-    coeffs = Table.read(os.path.join(data_dir, distortion_coefficients_file), format='ascii.basic', delimiter=',')
-    AA = coeffs['Sci2IdlX']
-    BB = coeffs['Sci2IdlY']
+    file_names = os.listdir(data_dir)
+    distortion_coefficients_file = \
+        [s for s in file_names if aper_name.lower() in s][0]
+    #aperture.set_distortion_coefficients_from_file(distortion_coefficients_file)
+    #coeffs_tbl = Table.read(os.path.join(data_dir, distortion_coefficients_file), format='ascii.basic', delimiter=',')
+    coeffs_tbl = ascii.read(os.path.join(data_dir, distortion_coefficients_file))
+    AA = coeffs_tbl['Sci2IdlX']
+    BB = coeffs_tbl['Sci2IdlY']
+
 betax = np.arctan2(-AA[1],BB[1])
 
 siaf_table = Table()

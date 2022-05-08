@@ -25,9 +25,9 @@ from astropy.modeling.fitting import LevMarLSQFitter
 from jwst import datamodels
 from photutils import IRAFStarFinder, DAOStarFinder
 from photutils import CircularAperture, EPSFBuilder
-from photutils.psf import DAOGroup, extract_stars, IterativelySubtractedPSFPhotometry
-from photutils.background import MMMBackground, MADStdBackgroundRMS
-from photutils.centroids import centroid_2dg, centroid_com
+from photutils.psf import DAOGroup, extract_stars, IterativelySubtractedPSFPhotometry, DAOPhotPSFPhotometry
+from photutils.background import MMMBackground, MADStdBackgroundRMS, SExtractorBackground
+from photutils.centroids import centroid_sources, centroid_2dg, centroid_com
 
 import pysiaf
 import pysiaf.utils.rotations as rotations
@@ -128,6 +128,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         instrument_name = getattr(im.meta.instrument, 'name')
         instrument_detector = getattr(im.meta.instrument, 'detector')
         instrument_filter = getattr(im.meta.instrument, 'filter')
+        instrument_pupil = getattr(im.meta.instrument, 'pupil')
 
         # DVA correction related
         va_scale   = getattr(im.meta.velocity_aberration, 'scale_factor')
@@ -184,6 +185,8 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
         mask_extreme_slope_values = False
         parameters['maximum_slope_value'] = 1000.
 
+
+
         # Check if extracted_sources_file exists, or overwrite_source_extraction is set to True
         if (not os.path.isfile(extracted_sources_file)) or (overwrite_source_extraction):
             data = copy.deepcopy(im.data)
@@ -199,19 +202,29 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 data[bad_index] = 0.
                 dq[bad_index] = -1
 
-            bkgrms = MADStdBackgroundRMS()
-            mmm_bkg = MMMBackground()
-            bgrms = bkgrms(data_cps)
-            bgavg = mmm_bkg(data_cps)
+
+            # Detection parameters
+            # sharp_lo, sharp_hi = parameters['sharp_lo'], parameters['sharp_hi']
+            # round_lo, round_hi = parameters['round_lo'], parameters['round_hi']
+            # sigma_factor = parameters['sigma_factor']
+            # fwhm = parameters['fwhm']
+            # fwhm_lo, fwhm_hi = parameters['fwhm_lo'], parameters['fwhm_hi']
+            # flux_percent_lo, flux_percent_hi = \
+            #       parameters['flux_percent_lo'], parameters['flux_percent_hi']
+            # minsep_fwhm = parameters['minsep_fwhm']
+
+
 
             # Default parameters that generally works for NIRCam/NIRISS images
+            bkg_factor = 1
             sigma_factor = 10
             round_lo, round_hi = 0.0, 0.6
             sharp_lo, sharp_hi = 0.3, 1.4
             fwhm_lo, fwhm_hi   = 1.0, 20.0
             fwhm = 2.0
             minsep_fwhm = 7 # NOTE: minsep_fwhm>5 to reject artifacts around saturated stars
-            flux_percent_lo, flux_percent_hi = 5, 99
+            flux_percent_lo, flux_percent_hi = 2, 99.5
+            flux_min = 50
 
             # if 'sharp_lo' in parameters:
             #    sharp_lo = parameters['sharp_lo']
@@ -221,36 +234,62 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             ###
             # Use different criteria for selecting good stars
             if parameters['nominalpsf']:
-                # If using Nominal PSF models
 
+################################################################################
+### FOR NIS-11 and NIS-13
 ################################################################################
                 if instrument_name == 'NIRISS':
-                    #fwhm_lo, fwhm_hi = 1.0, 2.0
-                    sigma_factor = 5
-                    sharp_lo, sharp_hi = 0.6, 1.0
-                    round_lo, round_hi = 0.0, 0.3
-                    fwhm_lo, fwhm_hi   = 1.2, 1.6
-                    fwhm = 1.6
-                    flux_percent_lo, flux_percent_hi = 2, 99
+
+                    sigma_factor = 3
+                    sharp_lo, sharp_hi = 0.7, 1.3
+                    round_lo, round_hi = 0.0, 0.4
+
+                    fff = instrument_filter+instrument_pupil
+                    if fff.find('F090W' or 'F115W')>-1:
+                        fwhm = 1.4
+                    elif fff.find('F140M' or 'F150W' or 'F158M' or 'F200W' or 'F277W')>-1:
+                        fwhm = 1.5
+                    elif fff.find('F356W')>-1:
+                        fwhm = 1.6
+                    elif fff.find('F380M')>-1:
+                        fwhm = 1.7
+                    elif fff.find('F430M' or 'F444W' or 'F480M')>-1:
+                        fwhm = 1.8
+                    else:
+                        fwhm = 1.55
 ################################################################################
 
 ################################################################################
+### FOR FGS-11
+################################################################################
+
                 elif instrument_name == 'FGS':
-                    sigma_factor = 100
-                    minsep_fwhm = 4
-                    sharp_lo, sharp_hi = 0.3, 1.4
-                    round_lo, round_hi = 0.0, 0.6
-                    flux_percent_lo, flux_percent_hi = 5, 99
-                    fwhm = 1.5
-################################################################################
+                    sigma_factor = 3
+                    fwhm = 1.55
+                    sharp_lo, sharp_hi = 0.7, 1.4
+                    round_lo, round_hi = 0.0, 0.4
+                    flux_min = 100
 
+################################################################################
 
                 elif instrument_name == 'NIRCAM':
                     sharp_lo, sharp_hi = 0.6, 1.4
+
                 elif instrument_name == 'MIRI':
-                    sharp_lo, sharp_hi = 0.8, 1.0
-                    fwhm_lo, fwhm_hi   = 1.5, 2.2
-                    sigma_factor       = 3
+                    if 'F770W' in instrument_filter:
+                        fwhm               = 1.8
+                        sharp_lo, sharp_hi = 0.9, 1.2
+                        fwhm_lo, fwhm_hi   = 1.5, 2.2
+                        bkg_factor         = 0.2
+                        sigma_factor       = 3
+                        flux_percent_lo, flux_percent_hi = 1, 99.9
+                    if 'F560W' in instrument_filter:
+                        fwhm               = 1.6
+                        sharp_lo, sharp_hi = 0.85, 1.2
+                        fwhm_lo, fwhm_hi   = 1.3, 2.0
+                        bkg_factor         = 0.5
+                        sigma_factor       = 3
+
                 elif instrument_name == 'NIRSPEC':
                     sharp_lo, sharp_hi = 0.6, 0.8
                     round_lo, round_hi = 0.0, 0.3
@@ -266,11 +305,6 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     sharp_lo, sharp_hi = 0.6, 1.4
                     fwhm_lo, fwhm_hi   = 1.4, 2.4
 
-################################################################################
-################################################################################
-################################################################################
-
-
                 elif instrument_name == 'FGS':
                     sigma_factor = 100
                     minsep_fwhm = 7
@@ -278,12 +312,8 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     round_lo, round_hi = 0.0, 0.6
                     flux_percent_lo, flux_percent_hi = 10, 99
                     fwhm = 1.5
-#
-################################################################################
-################################################################################
-################################################################################
 
-                # Below works well for F200W and F356W images
+                # Below is for the un-phased images (obs1, 2) in OTE-10
 
                 elif instrument_name == 'NIRCAM':
                     sigma_factor = 3
@@ -302,14 +332,11 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                     else:
                         fwhm = 3
 
-################################################################################
-################################################################################
-################################################################################
-
                 elif instrument_name == 'MIRI':
                     sharl_lo, sharp_hi = 0.5, 1.0
                     fwhm_lo, fwhm_hi   = 1.5, 2.2
                     sigma_factor       = 3
+
                 elif instrument_name == 'NIRSPEC':
                     sharp_lo, sharp_hi = 0.5, 0.8
                     round_lo, round_hi = 0.0, 0.3
@@ -318,7 +345,15 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
 
             # Use IRAFStarFinder for source detection
 
-            iraffind = IRAFStarFinder(threshold=sigma_factor*bgrms+bgavg,
+            bkgrms = MADStdBackgroundRMS()
+            if instrument_detector == 'MIRIMAGE':
+                mmm_bkg = SExtractorBackground()
+            else:
+                mmm_bkg = MMMBackground()
+            bgrms = bkgrms(data_cps)
+            bgavg = mmm_bkg(data_cps)
+
+            iraffind = IRAFStarFinder(threshold=sigma_factor*bgrms+bkg_factor*bgavg,
                                       fwhm=fwhm, minsep_fwhm=minsep_fwhm,
                                       roundlo=round_lo, roundhi=round_hi,
                                       sharplo=sharp_lo, sharphi=sharp_hi)
@@ -332,68 +367,69 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
             elif instrument_detector == 'NRS2':
                 datamask[:, 1024:] = True   # Mask everything on the right side
 
+            # Mask the left for MIRI
+            if instrument_detector == "MIRIMAGE":
+                datamask[:, :350] = True # Mask everyhing in the range x=1-350
+
             iraf_extracted_sources = iraffind(data_cps, mask=datamask)
 
             # Perform some basic filtering
 
             # Remove sources based on flux percentile
-            # 10-99% works well for filtering out too faint or saturated sources
-            flux_min = np.percentile(iraf_extracted_sources['flux'], flux_percent_lo)
+            #flux_min = np.percentile(iraf_extracted_sources['flux'], flux_percent_lo)
             flux_max = np.percentile(iraf_extracted_sources['flux'], flux_percent_hi)
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['flux']<flux_min))
             iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['flux']>flux_max))
 
-            # Also remove sources based on fwhm
-            ###
-            ### Don't use below for now - 2/23/2022 (Don't use it unless we get lots of bad sources)
-            ###
+            #
+            # Use a FWHM-based filtering if you get LOTS of bad sources not filtered by above
+            #
             #iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']<fwhm_lo))
             #iraf_extracted_sources.remove_rows(np.where(iraf_extracted_sources['fwhm']>fwhm_hi))
 
-
-
             # Now improve the positions by re-running centroiding algorithm if necessary.
-            # NOTE: For now, re-centroiding will be turned off
 
-            ###
-            ### TBD2: Add re-centroiding algorithm adopted from Paul here
-            ###
-            #xarr = sources_masked['xcentroid']
-            #yarr = sources_masked['ycentroid']
-            #newx, newy = centroid_sources(data_cps, xarr, yarr, box_size=5, centroid_func=centroid_2dg)
-            #coords = np.column_stack((newx, newy))
-            #srcaper = CircularAnnulus(coords, r_in=1, r_out=3)
-            #srcaper_masks = srcaper.to_mask(method='center')
-            #satflag = np.zeros((len(newx),),dtype=int)
-            #i = 0
-            #for mask in srcaper_masks:
-            #    srcaper_dq = mask.multiply(dqarr)
-            #    srcaper_dq_1d = srcaper_dq[mask.data>0]
-            #    badpix = np.logical_and(srcaper_dq_1d>2, srcaper_dq_1d<7)
-            #    reallybad = np.where(srcaper_dq_1d==1)
-            #    if ((len(srcaper_dq_1d[badpix]) > 1) or (len(srcaper_dq_1d[reallybad]) > 0)):
-            #        satflag[i] = 1
-            #        i =+1
-            #goodx = newx[np.where(satflag==0)]
-            #goody = newy[np.where(satflag==0)]
-            #print('Number of sources before removing saturated or bad pixels: ', len(xarr))
-            #print('Number of sources without saturated or bad pixels: ', len(goodx))
-            #print(' ')
-            #coords = np.column_stack((goodx,goody))
-
-
+            if parameters['use_centroid_2dg']:
+                print("=======================================================")
+                print(" Re-centroiding sources using centroid_2dg in progress ")
+                print("=======================================================")
+                intx = np.round(iraf_extracted_sources['xcentroid'].data)
+                inty = np.round(iraf_extracted_sources['ycentroid'].data)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", message="The fit may be unsuccessful")
+                    newx, newy = centroid_sources(data_cps, intx, inty, box_size=9,
+                                                  centroid_func=centroid_2dg)
+                iraf_extracted_sources['xcentroid'] = newx
+                iraf_extracted_sources['ycentroid'] = newy
 
             print('Number of extracted sources after filtering: {} sources'.format(len(iraf_extracted_sources)))
 
+            #
+            # Below is for the ePSF positional measurement.
+            # But, don't use this unless for special test case.
+            # There's a separate epsf_astrometry.py code for doing this part,
+            # that outputs a _FPA_data.fits files. That file should be copied
+            # to the fpa_data directory, and then the following flags should be set:
+            # generate_standardized_fpa_data = False
+            # overwrite_source_extraction    = False
+            #
             if parameters['use_epsf'] is True:
+                psf_stars = iraf_extracted_sources
+                flux_min = np.percentile(psf_stars['flux'], 25)
+                flux_max = np.percentile(psf_stars['flux'], 95)
+                psf_stars.remove_rows(np.where(psf_stars['flux']<flux_min))
+                psf_stars.remove_rows(np.where(psf_stars['flux']>flux_max))
+
                 size = 25
                 hsize = (size-1)/2
-                x = iraf_extracted_sources['xcentroid']
-                y = iraf_extracted_sources['ycentroid']
-                mask = ((x>hsize) & (x<(data_cps.shape[1]-1-hsize)) & (y>hsize) & (y<(data_cps.shape[0]-1-hsize)))
+                x = psf_stars['xcentroid']
+                y = psf_stars['ycentroid']
+                mask = ((x>hsize) & (x<(data_cps.shape[1]-1-hsize)) &
+                        (y>hsize) & (y<(data_cps.shape[0]-1-hsize)))
                 stars_tbl = Table()
                 stars_tbl['x'] = x[mask]
                 stars_tbl['y'] = y[mask]
+
                 print('Using {} stars to build epsf'.format(len(stars_tbl)))
 
                 data_cps_bkgsub = data_cps.copy()
@@ -431,13 +467,14 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 epsf, fitted_stars = epsf_builder(stars)
                 toc = time.perf_counter()
                 print("Time elapsed for building ePSF:", toc-tic)
+                print()
 
                 #
                 # Figure - ePSF plot
                 #
+                plt.figure(figsize=(10,10))
                 norm_epsf = simple_norm(epsf.data, 'log', percent=99.)
                 plt.rc('font', family='serif')
-                plt.figure()
                 plt.imshow(epsf.data, norm=norm_epsf, origin='lower', cmap='viridis')
                 plt.colorbar()
                 plt.title('{} epsf using {} stars'.format(header_info['APERTURE'], len(stars_tbl)))
@@ -449,27 +486,35 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 if parameters['show_extracted_sources']:
                     plt.show()
 
-                daogroup = DAOGroup(5.0*2.0)
+                fitter = LevMarLSQFitter()
                 psf_model = epsf.copy()
+                psf_phot = DAOPhotPSFPhotometry(crit_separation=1.0, threshold=4*std+bkg,
+                                                fwhm=fwhm, psf_model=psf_model, fitshape=5,
+                                                fitter=fitter, niters=3, aperture_radius=2,
+                                                extra_output_cols=('sharpness','roundness'))
 
+                #photometry = IterativelySubtractedPSFPhotometry(finder=iraffind, group_maker=daogroup,
+                #                                                bkg_estimator=mmm_bkg, psf_model=psf_model,
+                #                                                fitter=LevMarLSQFitter(), niters=1,
+                #                                                fitshape=(11,11), aperture_radius=5)
+
+                print("Performing DAOPhotPSFPhotometry using ePSF")
                 tic = time.perf_counter()
-                photometry = IterativelySubtractedPSFPhotometry(finder=iraffind, group_maker=daogroup,
-                                                                bkg_estimator=mmm_bkg, psf_model=psf_model,
-                                                                fitter=LevMarLSQFitter(), niters=1,
-                                                                fitshape=(11,11), aperture_radius=5)
-                print('Performing source extraction and photometry ...')
-                epsf_extracted_sources = photometry(data_cps)
+                psf_extracted_sources = psf_phot(data_cps)
                 toc = time.perf_counter()
                 print("Time elapsed for PSF photometry:", toc - tic)
                 print('Final source extraction with epsf: {} sources'.format(len(epsf_extracted_sources)))
+                print()
 
-                epsf_extracted_sources['xcentroid'] = epsf_extracted_sources['x_fit']
-                epsf_extracted_sources['ycentroid'] = epsf_extracted_sources['y_fit']
-                extracted_sources = epsf_extracted_sources
+                psf_extracted_sources['xcentroid'] = psf_extracted_sources['x_fit']
+                psf_extracted_sources['ycentroid'] = psf_extracted_sources['y_fit']
+                extracted_sources = psf_extracted_sources
                 extracted_sources.write(extracted_sources_file, overwrite=True)
 
-                norm = simple_norm(data_cps, 'sqrt', percent=99.)
-                diff = photometry.get_residual_image()
+                plt.rc('font', family='serif')
+                plt.figure(figsize=(40,20))
+                norm = simple_norm(data_cps, 'sqrt', percent=95.)
+                diff = psf_phot.get_residual_image()
                 plt.figure()
                 ax1 = plt.subplot(1,2,1)
                 plt.xlabel("X [pix]")
@@ -495,7 +540,7 @@ def jwst_camera_fpa_data(data_dir, pattern, standardized_data_dir, parameters,
                 extracted_sources.write(extracted_sources_file, overwrite=True)
 
             positions = np.transpose((extracted_sources['xcentroid'], extracted_sources['ycentroid']))
-            apertures = CircularAperture(positions, r=10)
+            apertures = CircularAperture(positions, r=5)
             norm = simple_norm(data_cps, 'sqrt', percent=99.)
 
             plt.rc('font', family='serif')
@@ -595,10 +640,14 @@ def crossmatch_fpa_data(parameters):
         xmatch_radius = parameters['xmatch_radius']
         rejection_level_sigma = parameters['rejection_level_sigma']
         restrict_analysis_to_these_apertures = parameters['restrict_analysis_to_these_apertures']
-        distortion_coefficients_file = parameters['distortion_coefficients_file']
+        use_default_siaf_distortion = parameters['use_default_siaf_distortion']
         correct_dva = parameters['correct_dva']
-        if correct_dva:
-            sc_velocity = parameters['sc_velocity']
+        # TBD: REPLACE BELOW WITH TAKING INPUT FROM HEADER (METADATA)
+        #if correct_dva:
+        #    sc_velocity = parameters['sc_velocity']
+
+        # Reference catalog magnitude range (for improved crossmatching)
+        xmatch_refcat_mag_range = parameters['xmatch_refcat_mag_range']
 
         # Set up return parameter
         observations = []
@@ -620,27 +669,42 @@ def crossmatch_fpa_data(parameters):
             if (restrict_analysis_to_these_apertures is not None):
                 if (aperture_name not in restrict_analysis_to_these_apertures):
                     continue
+############
+############ GLORIOUS ADDITION OF USING CUSTOM DISTORTION FILE
 
+            # Use the default SIAF if use_default_siaf_distortion is True
             aperture = copy.deepcopy(siaf[aperture_name])
-            reference_aperture = copy.deepcopy(aperture)
+
+            # But if using a custom distortion file, override coeffs in aperture
+            if not parameters['use_default_siaf_distortion']:
+                file_names = os.listdir(data_dir)
+                try:
+                    distortion_coefficients_file = \
+                        [s for s in file_names if aperture_name.lower() in s][0]
+                    try:
+                        aperture.set_distortion_coefficients_from_file(os.path.join(data_dir, distortion_coefficients_file))
+                        print()
+                        print('*'*70)
+                        print('Custom distortion coefficients file loaded: ',distortion_coefficients_file)
+                        print('*'*70)
+                        print()
+                    except:
+                        sys.exit('Distortion coefficients file is not in correct format!')
+                except:
+                    print()
+                    print('*'*70)
+                    print('WARNING!!! Did not find matching distortion coefficient file for', aperture_name.lower())
+                    print('WARNING!!! Using default distortion coefficients.')
+                    print('*'*70)
+                    print()
+                    #sys.exit('WARNING!! distortion coefficients file must be in the same directory as the data file!')
+############
+############
+
+            reference_aperture = copy.deepcopy(aperture) ### ---> This does NOT get used anywhere. Why is it here?
 
             print('Detector: %s' % (aperture.InstrName))
             print('Aperture: %s' % (aperture.AperName))
-
-            #****
-            #**** Below will NOT work for FGS-SI alignment since we'll need distortion_coefficients_file
-            #**** for BOTH FGS and SI detectors.
-            #**** TBD: Come up with a way to deal with this situation.
-            #****
-
-            # Either use the SIAF default distortion parameters, or the supplied one.
-            #
-            #if distortion_coefficients_file is None or len(distortion_coefficients_file)==0:
-            #    use_siaf_distortions = True
-            #else:
-            #    # Below is the *key* part for updating the distortion coefficients!
-            #    aperture.set_distortion_coefficients_from_file(os.path.join(data_dir, distortion_coefficients_file))
-            #    use_siaf_distortions = False
 
             # Generate alignment observation
             obs = AlignmentObservation(aperture.InstrName)
@@ -674,17 +738,9 @@ def crossmatch_fpa_data(parameters):
                                           np.array(reference_catalog['ra']),
                                           np.array(reference_catalog['dec']))
 
-            ### Why convert to RA, Dec space???
             reference_cat = SkyCoord(ra =np.array(reference_catalog['v2_spherical_arcsec']) * u.arcsec,
                                      dec=np.array(reference_catalog['v3_spherical_arcsec']) * u.arcsec)
 
-
-            # define Hawk-I catalog specific to every aperture to allow for local tangent-plane projection
-#            v2v3_reference = SkyCoord(ra =reference_aperture.V2Ref * u.arcsec,
-#                                      dec=reference_aperture.V3Ref * u.arcsec)
-#            selection_index = np.where(reference_cat.separation(v2v3_reference) < 3 * u.arcmin)[0]
-#            selection_index = np.where((reference_cat.separation(v2v3_reference) < 3 * u.arcmin) &
-#                                       (reference_catalog['j_magnitude'] < 21))[0]
 
             # Extract reference catalog stars in and around the calibration aperture.
             corners = aperture.corners('tel')
@@ -694,7 +750,8 @@ def crossmatch_fpa_data(parameters):
                                         (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+30)) &
                                         (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-30)) &
                                         (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+30)) &
-                                        (reference_catalog['j_magnitude'] < 20.5) )[0]   # 20.5 works generally okay, but go lower if fainter stars are present
+                                        (reference_catalog['j_magnitude']>np.min(xmatch_refcat_mag_range)) &
+                                        (reference_catalog['j_magnitude']<np.max(xmatch_refcat_mag_range)) )[0]
 
             obs.reference_catalog = reference_catalog[selection_index]
 
@@ -703,19 +760,36 @@ def crossmatch_fpa_data(parameters):
             mask = path_tel.contains_points(np.array(obs.reference_catalog['v2_spherical_arcsec', 'v3_spherical_arcsec'].to_pandas()))
 
             # Now deal with the observed catalog
+            ##
+            ## NOTES: This is where sci_to_idl happens, so...
+            ##
             star_catalog = fpa_data
             star_catalog['star_id'] = star_catalog['id']
             obs.star_catalog = star_catalog
 
+
+
+
+
+
             # Convert from sci frame (in pixels) to idl frame (in arcsec)
             obs.star_catalog['x_idl_arcsec'], obs.star_catalog['y_idl_arcsec'] = \
-                aperture.sci_to_idl(np.array(obs.star_catalog['x_SCI']), np.array(obs.star_catalog['y_SCI']))
+                aperture.sci_to_idl(np.array(obs.star_catalog['x_SCI']),
+                                    np.array(obs.star_catalog['y_SCI']))
 
-            # compute V2/V3: # IDL frame in degrees ->  V2/V3_tangent_plane in arcsec
-            obs.star_catalog = compute_idl_to_tel_in_table(obs.star_catalog, aperture, method=idl_tel_method)
 
-            # TBD: Try astroalign? --> my initial attempt didn't work (5/31/2021) For now, stick to TPalign
-            #
+
+
+
+
+
+
+
+
+
+            # compute V2/V3: # idl frame in degrees ->  V2/V3_tangent_plane in arcsec
+            obs.star_catalog = compute_idl_to_tel_in_table(obs.star_catalog,
+                                                           aperture, method=idl_tel_method)
 
             ######################################################################################
             #
@@ -724,11 +798,11 @@ def crossmatch_fpa_data(parameters):
             # the cross-match using pystortion.distortion.xmatch fails because there are
             # way too many sources in both of the catalogs to ensure a reliable match. [STS]
             #
-            bright_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-30)) &
-                                     (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+30)) &
-                                     (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-30)) &
-                                     (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+30)) &
-                                     (reference_catalog['j_magnitude'] < 18.5) )[0] ### 18.5 works for FGS1 and 2, but may need to use 19 for NIRCam?
+            bright_index = np.where( (reference_catalog['v2_spherical_arcsec']>(np.min(corners_v2)-20)) &
+                                     (reference_catalog['v2_spherical_arcsec']<(np.max(corners_v2)+20)) &
+                                     (reference_catalog['v3_spherical_arcsec']>(np.min(corners_v3)-20)) &
+                                     (reference_catalog['v3_spherical_arcsec']<(np.max(corners_v3)+20)) &
+                                     (reference_catalog['j_magnitude'] < 19.0) )[0] ### 19.0 works for FGS1 and 2, but may need to use 19 for NIRCam?
 
             print('Number of reference catalog stars used for initial offset match:',len(bright_index))
 
@@ -738,18 +812,18 @@ def crossmatch_fpa_data(parameters):
 
             obs_cat = obs.star_catalog
             obs_cat['TPx'], obs_cat['TPy'] = obs_cat['v2_spherical_arcsec'], obs_cat['v3_spherical_arcsec']
-            obs_cat.sort('flux',reverse=True)
+            try:
+                obs_cat.sort('flux',reverse=True)
+            except ValueError:
+                obs_cat.sort('flux_fit', reverse=True)
             # Adjust the number of sources to be used for initial matching below
-            obs_cat_bright = obs_cat[:199] ##### If I get a "exceeded" error, try changing this number
+            obs_cat_bright = obs_cat[:299] ##### If I get a "exceeded" error, try changing this number
 
-############
-###
 ### THIS WAS REQUIRED FOR THE HUGE OFFSET IN FLIGHT OTE-10 OBS16 (WRONG GUIDE STAR TRACKED)
+#            offset_match = matchutils.TPMatch(searchrad=30, separation=1, use2dhist=True, tolerance=0.6) # --> try tolerance=0.5
 ###
-#            offset_match = matchutils.TPMatch(searchrad=30, separation=1, use2dhist=True, tolerance=0.6) # --> tolerance=0.5 causes an error for nrcb2
-            offset_match = matchutils.TPMatch(searchrad=5, separation=0.7, use2dhist=True, tolerance=0.6) # --> tolerance=0.5 causes an error for nrcb2
+            offset_match = matchutils.TPMatch(searchrad=5, separation=0.7, use2dhist=True, tolerance=0.6) # --> try tolerance=0.5
             idx_ref, idx_obs = offset_match(ref_cat, obs_cat_bright)
-############
             dv2 = ref_cat['TPx'][idx_ref] - obs_cat_bright['TPx'][idx_obs]
             offset_v2 = sigma_clip(dv2.data, sigma=2.5, maxiters=5, cenfunc='median')
             avg_offset_v2 = 3*np.ma.median(offset_v2) - 2*np.ma.mean(offset_v2)
@@ -876,17 +950,18 @@ def crossmatch_fpa_data(parameters):
 
             obs.reference_catalog_matched = obs.reference_catalog[idx_reference_cat]
 
-            # Subtract back the offset applied above
+            #***
+            #*** Subtract back the offset applied above
+            #***
             obs.star_catalog['v2_spherical_arcsec'] -= avg_offset_v2
             obs.star_catalog['v3_spherical_arcsec'] -= avg_offset_v3
 
             obs.star_catalog_matched = obs.star_catalog[idx_star_cat]
             obs.reference_catalog_matched['star_id'] = obs.star_catalog_matched['star_id']
 
-            # save space in pickle, speed up
+            # Save space in pickle, speed up
             obs.reference_catalog = []
             obs.star_catalog = []
-            #obs.reference_reference_catalog = [] # NOT USED!
 
             obs.siaf_aperture_name = aperture_name
             obs.fpa_data = fpa_data
@@ -894,7 +969,7 @@ def crossmatch_fpa_data(parameters):
 
             # dictionary that defines the names of columns in the star/reference_catalog for use later on
             fieldname_dict = {}
-            fieldname_dict['star_catalog'] = {}  # observed
+            fieldname_dict['star_catalog'] = {}       # observed
             fieldname_dict['reference_catalog'] = {}  # reference
 
             if idl_tel_method == 'spherical':
